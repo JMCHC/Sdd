@@ -20,7 +20,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            overflow-y: auto; /* Permite el scroll en la página principal */
+            overflow-y: auto;
         }
 
         /* PANTALLA DE INICIO DE SESIÓN */
@@ -29,33 +29,33 @@
             background: var(--bg-blue);
             display: flex; justify-content: center; align-items: center;
             z-index: 1000; transition: opacity 0.5s ease;
-            overflow-y: auto; /* Permite el scroll si el contenido es muy alto */
+            overflow-y: auto;
         }
         .auth-modal {
-            width: 100%; max-width: 400px; padding: 20px 30px; /* Reducido para que esté más junto */
+            width: 100%; max-width: 400px; padding: 20px 30px;
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px;
             display: flex; flex-direction: column;
             box-shadow: 0 25px 50px rgba(0,0,0,0.15);
-            margin: auto; /* Evita que el modal se corte arriba al hacer scroll */
+            margin: auto;
         }
         .auth-logo { 
             width: 360px; 
-            margin: -60px auto -50px auto; /* Márgenes negativos que eliminan el espacio transparente de tu imagen */
+            margin: -60px auto -50px auto;
             filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); 
         }
         .auth-modal h2 { text-align: center; margin-bottom: 2px; font-weight: 500;}
         .auth-modal p { text-align: center; margin-bottom: 15px; font-size: 0.9em; opacity: 0.8; }
         .input-field {
-            width: 100%; padding: 12px; margin-bottom: 10px; /* Reducido para que esté más junto */
+            width: 100%; padding: 12px; margin-bottom: 10px;
             background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
             border-radius: 12px; color: white; outline: none; transition: 0.3s;
         }
         .input-field::placeholder { color: rgba(255,255,255,0.6); }
         .input-field:focus { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.5); }
-        .auth-buttons { display: flex; gap: 10px; margin-top: 5px; } /* Reducido para que esté más junto */
+        .auth-buttons { display: flex; gap: 10px; margin-top: 5px; }
         .btn-primary, .btn-secondary {
             flex: 1; padding: 12px; border-radius: 12px; border: none;
             font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
@@ -64,7 +64,7 @@
         .btn-secondary { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
         .btn-primary:hover, .btn-secondary:hover { transform: translateY(-2px); }
 
-        /* INTERFAZ PRINCIPAL (Oculta al inicio) */
+        /* INTERFAZ PRINCIPAL */
         .dashboard {
             width: 100%; max-width: 1000px; padding: 40px 20px;
             display: flex; flex-direction: column; align-items: center;
@@ -90,10 +90,10 @@
             background-color: var(--folder-red);
             border-radius: 16px; padding: 30px 20px;
             cursor: pointer; text-align: center; font-weight: 600; font-size: 1.2em;
-            /* Efecto Premium: Sombra exterior suave + Brillo interior */
             box-shadow: 0 10px 20px rgba(0,0,0,0.2), inset 0 2px 5px rgba(255,255,255,0.3);
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 1px solid rgba(255,255,255,0.1);
+            word-wrap: break-word; 
         }
         .folder:hover { transform: translateY(-8px); }
         .header-title { margin-bottom: 20px; font-weight: 300; letter-spacing: 1px; width: 100%; }
@@ -128,17 +128,20 @@
         </div>
     </div>
 
-    <!-- OVERLAY PARA AÑADIR DATOS (Mismo diseño glass) -->
+    <!-- OVERLAY PARA AÑADIR DATOS (RAMOS) -->
     <div id="input-overlay" class="auth-overlay" style="display: none; z-index: 1001;">
         <div class="auth-modal">
-            <h2 id="input-title">Nuevo</h2>
-            <input type="text" id="input-value" class="input-field" placeholder="Nombre...">
+            <h2 id="input-title">Nuevo Ramo</h2>
+            <input type="text" id="input-value" class="input-field" placeholder="Nombre del Ramo...">
             <div class="auth-buttons">
                 <button id="btn-input-cancel" class="btn-secondary">Cancelar</button>
                 <button id="btn-input-save" class="btn-primary">Guardar</button>
             </div>
         </div>
     </div>
+
+    <!-- INPUT INVISIBLE PARA SUBIR PDF -->
+    <input type="file" id="file-upload" accept="application/pdf" style="display: none;">
 
     <!-- INTERFAZ PRINCIPAL -->
     <button id="btn-logout" class="btn-logout" style="display: none;">Cerrar Sesión</button>
@@ -147,38 +150,44 @@
         <img src="https://lh3.googleusercontent.com/pw/AP1GczM-QDLV4_StoQYFE9fpmfm2AjaXbodPfWn5iZcmR0C3W_yrnM1P69rQ-UL97rllE-OVF4Zz7ZrhxT6AhbLpVzR1-MURUIj9RTF7UXoXZwv2oNBoV8ULKilizJBb27YYpWLeDTZTQk0sP44b1wyfxFz3KQ=w599-h599-s-no-gm?authuser=0" alt="Logo SddApoya" class="main-logo">
         
         <div class="search-container">
-            <input type="text" id="search-bar" class="search-bar" placeholder="Buscar proyectos, carpetas, archivos...">
+            <input type="text" id="search-bar" class="search-bar" placeholder="Buscar carreras, ramos, archivos...">
         </div>
 
-        <!-- VISTA DE CARPETAS PRINCIPALES (AHORA CARRERAS) -->
-        <div id="view-main" style="width: 100%;">
+        <!-- NIVEL 1: CARRERAS -->
+        <div id="view-carreras" style="width: 100%;">
             <h2 class="header-title">Carreras</h2>
-            <div class="folders-grid" id="main-folders-grid">
-                <!-- Se llenará desde el array fijo de JS -->
-            </div>
+            <div class="folders-grid" id="carreras-grid"></div>
         </div>
 
-        <!-- VISTA DE SUBCARPETAS (RAMOS) -->
-        <div id="view-sub" style="width: 100%; display: none;">
+        <!-- NIVEL 2: RAMOS -->
+        <div id="view-ramos" style="width: 100%; display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%;">
-                <button id="btn-back" class="btn-secondary" style="flex: 0 1 auto; padding: 8px 16px; margin: 0;">⬅ Volver</button>
-                <h2 class="header-title" id="sub-title" style="margin-bottom: 0; text-align: right; font-weight: 500;">Ramos</h2>
+                <button id="btn-back-carreras" class="btn-secondary" style="flex: 0 1 auto; padding: 8px 16px; margin: 0;">⬅ Volver a Carreras</button>
+                <h2 class="header-title" id="title-carrera" style="margin-bottom: 0; text-align: right; font-weight: 500;">Ramos</h2>
             </div>
-            <div class="folders-grid" id="sub-folders-grid">
-                <!-- Se llenará desde Firebase -->
+            <div class="folders-grid" id="ramos-grid"></div>
+        </div>
+
+        <!-- NIVEL 3: ARCHIVOS (PDFs) -->
+        <div id="view-archivos" style="width: 100%; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%;">
+                <button id="btn-back-ramos" class="btn-secondary" style="flex: 0 1 auto; padding: 8px 16px; margin: 0;">⬅ Volver a Ramos</button>
+                <h2 class="header-title" id="title-ramo" style="margin-bottom: 0; text-align: right; font-weight: 500;">Archivos</h2>
             </div>
+            <div id="upload-status" style="width: 100%; text-align: center; color: #a8e6cf; margin-bottom: 15px; display: none;">Convirtiendo y subiendo archivo... (Puede tomar unos segundos)</div>
+            <div class="folders-grid" id="archivos-grid"></div>
         </div>
 
     </div>
 
-    <!-- LÓGICA DE FIREBASE (Módulo) -->
+    <!-- LÓGICA DE FIREBASE AUTH Y CLOUDFLARE D1 -->
     <script type="module">
-        // Importaciones de Auth y Firestore
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Configuración de tu proyecto
+        // URL del backend seguro en Cloudflare (AQUÍ ESTÁ TU NUEVO WORKER)
+        const WORKER_URL = "https://sdd-backend.christensenjosemanuel.workers.dev";
+
         const firebaseConfig = {
             apiKey: "AIzaSyCwE3pxEaU1hqxUW1zeokgzkNPBGYSvIOg",
             authDomain: "basedatos-universidad.firebaseapp.com",
@@ -190,157 +199,244 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
 
-        // Elementos DOM (Auth)
+        // DOM Elements
         const overlay = document.getElementById('auth-overlay');
         const dashboard = document.getElementById('dashboard');
         const emailInput = document.getElementById('auth-email');
         const passwordInput = document.getElementById('auth-password');
         const errorMsg = document.getElementById('auth-error');
         const btnLogoutUI = document.getElementById('btn-logout');
-
-        // Elementos DOM (Base de Datos e Interfaz)
-        const viewMain = document.getElementById('view-main');
-        const viewSub = document.getElementById('view-sub');
-        const mainFoldersGrid = document.getElementById('main-folders-grid');
-        const subFoldersGrid = document.getElementById('sub-folders-grid');
-        const subTitle = document.getElementById('sub-title');
-        const btnBack = document.getElementById('btn-back');
         const searchBar = document.getElementById('search-bar');
         
-        // Elementos DOM (Modal de Ingreso de datos)
+        const viewCarreras = document.getElementById('view-carreras');
+        const viewRamos = document.getElementById('view-ramos');
+        const viewArchivos = document.getElementById('view-archivos');
+        const carrerasGrid = document.getElementById('carreras-grid');
+        const ramosGrid = document.getElementById('ramos-grid');
+        const archivosGrid = document.getElementById('archivos-grid');
+        
+        const titleCarrera = document.getElementById('title-carrera');
+        const titleRamo = document.getElementById('title-ramo');
+        const btnBackCarreras = document.getElementById('btn-back-carreras');
+        const btnBackRamos = document.getElementById('btn-back-ramos');
+
         const inputOverlay = document.getElementById('input-overlay');
-        const inputTitle = document.getElementById('input-title');
         const inputValue = document.getElementById('input-value');
         const btnInputSave = document.getElementById('btn-input-save');
         const btnInputCancel = document.getElementById('btn-input-cancel');
+        const fileUpload = document.getElementById('file-upload');
+        const uploadStatus = document.getElementById('upload-status');
 
-        let currentFolderId = null;
-        let actionType = null; // 'ramo'
+        let currentCarrera = null;
+        let currentRamoId = null;
+        let currentRamoNombre = null;
 
-        // LISTADO FIJO DE CARRERAS
         const carrerasFijas = [
             "Actuación", "Administración Pública", "Agronomía", "Antropología", "Arqueología",
-            "Arquitectura", "Arte", "Astronomía", 
-            "Bachillerato Inicia en Ciencias Naturales y Matemática (Santiago y Campus Villarrica)",
-            "Bachillerato Inicia en Ciencias Sociales (Santiago y Campus Villarrica)",
-            "Biología", "Biología Marina", "Bioquímica", "Ciencia Política", 
+            "Arquitectura", "Arte", "Astronomía", "Bachillerato Inicia en Ciencias Naturales y Matemática",
+            "Bachillerato Inicia en Ciencias Sociales", "Biología", "Biología Marina", "Bioquímica", "Ciencia Política", 
             "College Artes y Humanidades", "College Ciencias Naturales y Matemáticas", "College Ciencias Sociales",
             "Construcción Civil", "Derecho", "Dirección Audiovisual", "Diseño", "Enfermería", "Estadística", "Estética",
             "Filosofía", "Física", "Fonoaudiología", "Geografía", "Historia", "Ingeniería", "Ingeniería Comercial",
             "Ingeniería en Recursos Naturales", "Ingeniería Forestal", "Interpretación Musical", "Kinesiología",
             "Letras Hispánicas", "Letras Inglesas", "Licenciatura en Ingeniería en Ciencia de Datos",
             "Licenciatura en Ingeniería en Ciencia de la Computación", "Matemática", "Medicina", "Medicina Veterinaria",
-            "Música", "Nutrición y Dietética", "Odontología", 
-            "Pedagogías (incluye todas las especialidades, campus y el Programa de Pedagogía para Profesionales)",
-            "Periodismo", "Planificación Urbana (Carrera nueva)", "Psicología", "Publicidad", "Química", 
-            "Química y Farmacia", "Sociología", "Teología", "Terapia Ocupacional", "Trabajo Social"
+            "Música", "Nutrición y Dietética", "Odontología", "Pedagogías", "Periodismo", "Planificación Urbana", 
+            "Psicología", "Publicidad", "Química", "Química y Farmacia", "Sociología", "Teología", "Terapia Ocupacional", "Trabajo Social"
         ];
 
-        // --- SISTEMA DE BÚSQUEDA EN TIEMPO REAL ---
+        // --- BUSCADOR ---
         searchBar.addEventListener('input', (e) => {
             const text = e.target.value.toLowerCase();
-            const activeGrid = viewMain.style.display !== 'none' ? mainFoldersGrid : subFoldersGrid;
-            const items = activeGrid.querySelectorAll('.folder');
-            
-            items.forEach(item => {
+            let activeGrid = viewCarreras.style.display !== 'none' ? carrerasGrid : 
+                            (viewRamos.style.display !== 'none' ? ramosGrid : archivosGrid);
+
+            activeGrid.querySelectorAll('.folder').forEach(item => {
                 const name = item.textContent.toLowerCase();
                 item.style.display = name.includes(text) ? 'block' : 'none';
             });
         });
 
-        // --- FUNCIONES DE INTERFAZ Y BASE DE DATOS ---
-        function loadMainFolders() {
-            mainFoldersGrid.innerHTML = '';
-            
+        // --- NIVEL 1: CARRERAS ---
+        function loadCarreras() {
+            carrerasGrid.innerHTML = '';
             carrerasFijas.forEach((carrera) => {
                 const div = document.createElement('div');
                 div.className = 'folder';
                 div.textContent = carrera;
-                // Usamos el nombre de la carrera directamente como ID para vincularla a sus ramos en la base de datos
-                div.onclick = () => openFolder(carrera, carrera);
-                mainFoldersGrid.appendChild(div);
+                div.onclick = () => openCarrera(carrera);
+                carrerasGrid.appendChild(div);
             });
         }
 
-        async function openFolder(id, nombre) {
-            currentFolderId = id;
-            subTitle.textContent = nombre;
-            viewMain.style.display = 'none';
-            viewSub.style.display = 'block';
-            searchBar.value = ''; // Limpiar buscador al entrar
+        // --- NIVEL 2: RAMOS CON D1 SQLITE ---
+        async function openCarrera(nombreCarrera) {
+            currentCarrera = nombreCarrera;
+            titleCarrera.textContent = nombreCarrera;
+            viewCarreras.style.display = 'none';
+            viewArchivos.style.display = 'none';
+            viewRamos.style.display = 'block';
+            searchBar.value = '';
 
-            subFoldersGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7;">Cargando ramos...</p>';
-            const q = query(collection(db, "ramos"), where("carpetaId", "==", id));
-            const querySnapshot = await getDocs(q);
-            subFoldersGrid.innerHTML = '';
+            ramosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7;">Cargando ramos...</p>';
+            
+            try {
+                const res = await fetch(`${WORKER_URL}/ramos?carrera=${encodeURIComponent(nombreCarrera)}`);
+                const ramosData = await res.json();
+                ramosGrid.innerHTML = '';
 
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                const div = document.createElement('div');
-                div.className = 'folder';
-                div.textContent = data.nombre;
-                subFoldersGrid.appendChild(div);
-            });
+                ramosData.forEach((ramo) => {
+                    const div = document.createElement('div');
+                    div.className = 'folder';
+                    div.textContent = ramo.nombre;
+                    div.onclick = () => openRamo(ramo.id, ramo.nombre);
+                    ramosGrid.appendChild(div);
+                });
+            } catch(e) { ramosGrid.innerHTML = '<p style="text-align:center; width:100%;">Error al conectar con la base de datos.</p>'; }
 
-            // Botón estético para añadir ramo
             const btnAdd = document.createElement('div');
             btnAdd.className = 'folder';
             btnAdd.style.backgroundColor = 'rgba(255,255,255,0.05)';
             btnAdd.style.border = '1px dashed rgba(255,255,255,0.4)';
             btnAdd.style.boxShadow = 'none';
             btnAdd.textContent = '+ Agregar Ramo';
-            btnAdd.onclick = () => openInputModal('Nuevo Ramo', 'ramo');
-            subFoldersGrid.appendChild(btnAdd);
+            btnAdd.onclick = () => {
+                inputValue.value = '';
+                inputOverlay.style.display = 'flex';
+                setTimeout(() => inputOverlay.style.opacity = '1', 50);
+                inputValue.focus();
+            };
+            ramosGrid.appendChild(btnAdd);
         }
 
-        btnBack.onclick = () => {
-            viewSub.style.display = 'none';
-            viewMain.style.display = 'block';
-            currentFolderId = null;
-            searchBar.value = ''; // Limpiar buscador al salir
-            
-            // Refrescar buscador de carreras
-            const items = mainFoldersGrid.querySelectorAll('.folder');
-            items.forEach(item => item.style.display = 'block');
+        btnBackCarreras.onclick = () => {
+            viewRamos.style.display = 'none';
+            viewCarreras.style.display = 'block';
+            currentCarrera = null;
+            searchBar.value = '';
+            carrerasGrid.querySelectorAll('.folder').forEach(item => item.style.display = 'block');
         };
 
-        // --- CONTROL DEL MODAL DE INGRESO ---
-        function openInputModal(title, type) {
-            inputTitle.textContent = title;
-            inputValue.value = '';
-            actionType = type;
-            inputOverlay.style.display = 'flex';
-            setTimeout(() => inputOverlay.style.opacity = '1', 50);
-            inputValue.focus();
-        }
+        // Guardar Nuevo Ramo (Incluye el registro silencioso del creador)
+        btnInputSave.onclick = async () => {
+            const val = inputValue.value.trim();
+            if (!val) return;
+            btnInputSave.disabled = true;
+            btnInputSave.textContent = 'Guardando...';
+
+            try {
+                await fetch(`${WORKER_URL}/ramos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nombre: val,
+                        carrera: currentCarrera,
+                        creadoPor: auth.currentUser.email
+                    })
+                });
+                btnInputCancel.click();
+                await openCarrera(currentCarrera);
+            } catch (e) {
+                alert('Error de conexión con Cloudflare D1.');
+            }
+            btnInputSave.disabled = false;
+            btnInputSave.textContent = 'Guardar';
+        };
 
         btnInputCancel.onclick = () => {
             inputOverlay.style.opacity = '0';
             setTimeout(() => inputOverlay.style.display = 'none', 500);
         };
 
-        btnInputSave.onclick = async () => {
-            const val = inputValue.value.trim();
-            if (!val) return;
+        // --- NIVEL 3: ARCHIVOS CON D1 BASE64 ---
+        async function openRamo(ramoId, ramoNombre) {
+            currentRamoId = ramoId;
+            currentRamoNombre = ramoNombre;
+            titleRamo.textContent = ramoNombre;
+            viewRamos.style.display = 'none';
+            viewArchivos.style.display = 'block';
+            searchBar.value = '';
 
-            btnInputSave.disabled = true;
-            btnInputSave.textContent = 'Guardando...';
-
+            archivosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7;">Cargando archivos...</p>';
+            
             try {
-                if (actionType === 'ramo') {
-                    await addDoc(collection(db, "ramos"), { nombre: val, carpetaId: currentFolderId, fecha: new Date() });
-                    await openFolder(currentFolderId, subTitle.textContent);
-                }
-                btnInputCancel.click(); // Cerrar modal si fue exitoso
-            } catch (e) {
-                alert('Error de permisos o conexión. Asegúrate de haber iniciado sesión correctamente.');
+                const res = await fetch(`${WORKER_URL}/archivos?ramoId=${ramoId}`);
+                const archivosData = await res.json();
+                archivosGrid.innerHTML = '';
+
+                archivosData.forEach((archivo) => {
+                    const div = document.createElement('div');
+                    div.className = 'folder';
+                    div.innerHTML = `📄 ${archivo.nombre}`;
+                    
+                    // Al hacer click, abre una pestaña y renderiza el PDF base64
+                    div.onclick = () => {
+                        const win = window.open();
+                        win.document.write(`<iframe src="${archivo.url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                    };
+                    archivosGrid.appendChild(div);
+                });
+            } catch(e) { archivosGrid.innerHTML = '<p style="text-align:center; width:100%;">Error al conectar con la base de datos.</p>'; }
+
+            const btnUpload = document.createElement('div');
+            btnUpload.className = 'folder';
+            btnUpload.style.backgroundColor = 'rgba(255,255,255,0.05)';
+            btnUpload.style.border = '1px dashed rgba(255,255,255,0.4)';
+            btnUpload.style.boxShadow = 'none';
+            btnUpload.textContent = '+ Subir PDF';
+            btnUpload.onclick = () => fileUpload.click();
+            archivosGrid.appendChild(btnUpload);
+        }
+
+        btnBackRamos.onclick = () => openCarrera(currentCarrera);
+
+        // Convertir PDF a Base64 y guardar en SQLite D1 (Con registro silencioso)
+        fileUpload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.type !== 'application/pdf') {
+                alert('Solo se admiten archivos PDF.');
+                fileUpload.value = '';
+                return;
             }
 
-            btnInputSave.disabled = false;
-            btnInputSave.textContent = 'Guardar';
-        };
+            uploadStatus.style.display = 'block';
+            
+            // Lector nativo del navegador para evitar servidores externos
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const base64String = reader.result;
+                
+                try {
+                    const response = await fetch(`${WORKER_URL}/archivos`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            nombre: file.name,
+                            ramoId: currentRamoId,
+                            base64: base64String,
+                            subidoPor: auth.currentUser.email
+                        })
+                    });
+                    
+                    if (!response.ok) throw new Error('Fallo la carga. Si el PDF tiene muchas páginas, intenta comprimirlo (límite de D1 SQLite).');
+                    await openRamo(currentRamoId, currentRamoNombre);
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+
+                uploadStatus.style.display = 'none';
+                fileUpload.value = ''; 
+            };
+            
+            reader.onerror = () => {
+                alert('Error al procesar el archivo en tu navegador.');
+                uploadStatus.style.display = 'none';
+            };
+        });
 
         function showMsg(msg, color = '#ffcccc') {
             errorMsg.textContent = msg;
@@ -349,43 +445,37 @@
             setTimeout(() => errorMsg.style.display = 'none', 6000);
         }
 
-        // --- LÓGICA DE REGISTRO / LOGIN ---
+        // --- AUTH ---
         document.getElementById('btn-register').addEventListener('click', () => {
             const email = emailInput.value.trim().toLowerCase();
             const password = passwordInput.value;
-
             if (!email.endsWith('@uc.cl') && !email.endsWith('@estudiante.uc.cl')) {
                 showMsg('Solo correos @uc.cl o @estudiante.uc.cl permitidos.');
                 return;
             }
-
             createUserWithEmailAndPassword(auth, email, password)
                 .then((cred) => {
                     sendEmailVerification(cred.user).then(() => {
                         showMsg('Cuenta creada. Revisa tu correo UC para verificarla.', '#a8e6cf');
                         signOut(auth);
                     });
-                })
-                .catch(err => showMsg(err.message));
+                }).catch(err => showMsg(err.message));
         });
 
         document.getElementById('btn-login').addEventListener('click', () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value;
-
             signInWithEmailAndPassword(auth, email, password)
                 .then((cred) => {
                     if (!cred.user.emailVerified) {
                         showMsg('Debes verificar tu correo UC primero.');
                         signOut(auth);
                     }
-                })
-                .catch(err => showMsg('Credenciales incorrectas.'));
+                }).catch(err => showMsg('Credenciales incorrectas.'));
         });
 
         btnLogoutUI.addEventListener('click', () => signOut(auth));
 
-        // --- CONTROLADOR DE ESTADO (AUTH STATE) ---
         onAuthStateChanged(auth, (user) => {
             if (user && user.emailVerified) {
                 overlay.style.opacity = '0';
@@ -393,7 +483,7 @@
                     overlay.style.display = 'none';
                     dashboard.style.display = 'flex';
                     btnLogoutUI.style.display = 'block';
-                    loadMainFolders(); // Cargar carreras al entrar
+                    loadCarreras();
                 }, 500);
             } else {
                 dashboard.style.display = 'none';
