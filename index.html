@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base de Datos UC</title>
+    <style>
+        /* VARIABLES Y RESET */
+        :root {
+            --bg-blue: #64849A;
+            --folder-red: #C33C3A;
+            --text-light: #ffffff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        
+        body {
+            background-color: var(--bg-blue);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto; /* Permite el scroll en la página principal */
+        }
+
+        /* PANTALLA DE INICIO DE SESIÓN */
+        .auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-blue);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000; transition: opacity 0.5s ease;
+            overflow-y: auto; /* Permite el scroll si el contenido es muy alto */
+        }
+        .auth-modal {
+            width: 100%; max-width: 400px; padding: 20px 30px; /* Reducido para que esté más junto */
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            display: flex; flex-direction: column;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            margin: auto; /* Evita que el modal se corte arriba al hacer scroll */
+        }
+        .auth-logo { 
+            width: 360px; 
+            margin: -60px auto -50px auto; /* Márgenes negativos que eliminan el espacio transparente de tu imagen */
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); 
+        }
+        .auth-modal h2 { text-align: center; margin-bottom: 2px; font-weight: 500;}
+        .auth-modal p { text-align: center; margin-bottom: 15px; font-size: 0.9em; opacity: 0.8; }
+        .input-field {
+            width: 100%; padding: 12px; margin-bottom: 10px; /* Reducido para que esté más junto */
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px; color: white; outline: none; transition: 0.3s;
+        }
+        .input-field::placeholder { color: rgba(255,255,255,0.6); }
+        .input-field:focus { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.5); }
+        .auth-buttons { display: flex; gap: 10px; margin-top: 5px; } /* Reducido para que esté más junto */
+        .btn-primary, .btn-secondary {
+            flex: 1; padding: 12px; border-radius: 12px; border: none;
+            font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary { background: var(--folder-red); color: white; box-shadow: inset 0 2px 4px rgba(255,255,255,0.2), 0 4px 10px rgba(0,0,0,0.2); }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
+        .btn-primary:hover, .btn-secondary:hover { transform: translateY(-2px); }
+
+        /* INTERFAZ PRINCIPAL (Oculta al inicio) */
+        .dashboard {
+            width: 100%; max-width: 1000px; padding: 40px 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .main-logo { width: 480px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); margin-bottom: 30px; }
+        
+        .search-container { width: 100%; max-width: 600px; margin-bottom: 40px; }
+        .search-bar {
+            width: 100%; padding: 16px 24px; border-radius: 30px;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: white; font-size: 1.1em; backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1); transition: 0.3s;
+        }
+        .search-bar::placeholder { color: rgba(255,255,255,0.7); }
+        .search-bar:focus { background: rgba(255,255,255,0.15); outline: none; border-color: rgba(255,255,255,0.4); }
+
+        /* CARPETAS ROJAS PREMIUM */
+        .folders-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px; width: 100%;
+        }
+        .folder {
+            background-color: var(--folder-red);
+            border-radius: 16px; padding: 30px 20px;
+            cursor: pointer; text-align: center; font-weight: 600; font-size: 1.2em;
+            /* Efecto Premium: Sombra exterior suave + Brillo interior */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2), inset 0 2px 5px rgba(255,255,255,0.3);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .folder:hover { transform: translateY(-8px); }
+        .header-title { margin-bottom: 20px; font-weight: 300; letter-spacing: 1px; width: 100%; }
+        
+        /* Botón de cerrar sesión */
+        .btn-logout {
+            position: absolute; top: 20px; right: 20px;
+            background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 16px; border-radius: 20px; cursor: pointer;
+        }
+        .btn-logout:hover { background: rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+
+    <!-- OVERLAY DE INICIO DE SESIÓN -->
+    <div id="auth-overlay" class="auth-overlay">
+        <div class="auth-modal">
+            <img src="https://lh3.googleusercontent.com/pw/AP1GczM-QDLV4_StoQYFE9fpmfm2AjaXbodPfWn5iZcmR0C3W_yrnM1P69rQ-UL97rllE-OVF4Zz7ZrhxT6AhbLpVzR1-MURUIj9RTF7UXoXZwv2oNBoV8ULKilizJBb27YYpWLeDTZTQk0sP44b1wyfxFz3KQ=w599-h599-s-no-gm?authuser=0" alt="Logo" class="auth-logo">
+            <h2>Acceso Académico</h2>
+            <p>Ingresa con tu correo institucional UC</p>
+            
+            <input type="email" id="auth-email" placeholder="usuario@uc.cl" class="input-field">
+            <input type="password" id="auth-password" placeholder="Contraseña" class="input-field">
+            
+            <div id="auth-error" style="display: none; color: #ffcccc; margin-bottom: 15px; font-size: 0.9em; text-align: center;"></div>
+            
+            <div class="auth-buttons">
+                <button id="btn-login" class="btn-primary">Ingresar</button>
+                <button id="btn-register" class="btn-secondary">Registrarse</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY PARA AÑADIR DATOS (Mismo diseño glass) -->
+    <div id="input-overlay" class="auth-overlay" style="display: none; z-index: 1001;">
+        <div class="auth-modal">
+            <h2 id="input-title">Nuevo</h2>
+            <input type="text" id="input-value" class="input-field" placeholder="Nombre...">
+            <div class="auth-buttons">
+                <button id="btn-input-cancel" class="btn-secondary">Cancelar</button>
+                <button id="btn-input-save" class="btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERFAZ PRINCIPAL -->
+    <button id="btn-logout" class="btn-logout" style="display: none;">Cerrar Sesión</button>
+    
+    <div class="dashboard" id="dashboard" style="display: none;">
+        <img src="https://lh3.googleusercontent.com/pw/AP1GczM-QDLV4_StoQYFE9fpmfm2AjaXbodPfWn5iZcmR0C3W_yrnM1P69rQ-UL97rllE-OVF4Zz7ZrhxT6AhbLpVzR1-MURUIj9RTF7UXoXZwv2oNBoV8ULKilizJBb27YYpWLeDTZTQk0sP44b1wyfxFz3KQ=w599-h599-s-no-gm?authuser=0" alt="Logo SddApoya" class="main-logo">
+        
+        <div class="search-container">
+            <input type="text" id="search-bar" class="search-bar" placeholder="Buscar proyectos, carpetas, archivos...">
+        </div>
+
+        <!-- VISTA DE CARPETAS PRINCIPALES (AHORA CARRERAS) -->
+        <div id="view-main" style="width: 100%;">
+            <h2 class="header-title">Carreras</h2>
+            <div class="folders-grid" id="main-folders-grid">
+                <!-- Se llenará desde el array fijo de JS -->
+            </div>
+        </div>
+
+        <!-- VISTA DE SUBCARPETAS (RAMOS) -->
+        <div id="view-sub" style="width: 100%; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%;">
+                <button id="btn-back" class="btn-secondary" style="flex: 0 1 auto; padding: 8px 16px; margin: 0;">⬅ Volver</button>
+                <h2 class="header-title" id="sub-title" style="margin-bottom: 0; text-align: right; font-weight: 500;">Ramos</h2>
+            </div>
+            <div class="folders-grid" id="sub-folders-grid">
+                <!-- Se llenará desde Firebase -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- LÓGICA DE FIREBASE (Módulo) -->
+    <script type="module">
+        // Importaciones de Auth y Firestore
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Configuración de tu proyecto
+        const firebaseConfig = {
+            apiKey: "AIzaSyCwE3pxEaU1hqxUW1zeokgzkNPBGYSvIOg",
+            authDomain: "basedatos-universidad.firebaseapp.com",
+            projectId: "basedatos-universidad",
+            storageBucket: "basedatos-universidad.firebasestorage.app",
+            messagingSenderId: "997345827243",
+            appId: "1:997345827243:web:1d30c25373cd2bc5511aee"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Elementos DOM (Auth)
+        const overlay = document.getElementById('auth-overlay');
+        const dashboard = document.getElementById('dashboard');
+        const emailInput = document.getElementById('auth-email');
+        const passwordInput = document.getElementById('auth-password');
+        const errorMsg = document.getElementById('auth-error');
+        const btnLogoutUI = document.getElementById('btn-logout');
+
+        // Elementos DOM (Base de Datos e Interfaz)
+        const viewMain = document.getElementById('view-main');
+        const viewSub = document.getElementById('view-sub');
+        const mainFoldersGrid = document.getElementById('main-folders-grid');
+        const subFoldersGrid = document.getElementById('sub-folders-grid');
+        const subTitle = document.getElementById('sub-title');
+        const btnBack = document.getElementById('btn-back');
+        const searchBar = document.getElementById('search-bar');
+        
+        // Elementos DOM (Modal de Ingreso de datos)
+        const inputOverlay = document.getElementById('input-overlay');
+        const inputTitle = document.getElementById('input-title');
+        const inputValue = document.getElementById('input-value');
+        const btnInputSave = document.getElementById('btn-input-save');
+        const btnInputCancel = document.getElementById('btn-input-cancel');
+
+        let currentFolderId = null;
+        let actionType = null; // 'ramo'
+
+        // LISTADO FIJO DE CARRERAS
+        const carrerasFijas = [
+            "Actuación", "Administración Pública", "Agronomía", "Antropología", "Arqueología",
+            "Arquitectura", "Arte", "Astronomía", 
+            "Bachillerato Inicia en Ciencias Naturales y Matemática (Santiago y Campus Villarrica)",
+            "Bachillerato Inicia en Ciencias Sociales (Santiago y Campus Villarrica)",
+            "Biología", "Biología Marina", "Bioquímica", "Ciencia Política", 
+            "College Artes y Humanidades", "College Ciencias Naturales y Matemáticas", "College Ciencias Sociales",
+            "Construcción Civil", "Derecho", "Dirección Audiovisual", "Diseño", "Enfermería", "Estadística", "Estética",
+            "Filosofía", "Física", "Fonoaudiología", "Geografía", "Historia", "Ingeniería", "Ingeniería Comercial",
+            "Ingeniería en Recursos Naturales", "Ingeniería Forestal", "Interpretación Musical", "Kinesiología",
+            "Letras Hispánicas", "Letras Inglesas", "Licenciatura en Ingeniería en Ciencia de Datos",
+            "Licenciatura en Ingeniería en Ciencia de la Computación", "Matemática", "Medicina", "Medicina Veterinaria",
+            "Música", "Nutrición y Dietética", "Odontología", 
+            "Pedagogías (incluye todas las especialidades, campus y el Programa de Pedagogía para Profesionales)",
+            "Periodismo", "Planificación Urbana (Carrera nueva)", "Psicología", "Publicidad", "Química", 
+            "Química y Farmacia", "Sociología", "Teología", "Terapia Ocupacional", "Trabajo Social"
+        ];
+
+        // --- SISTEMA DE BÚSQUEDA EN TIEMPO REAL ---
+        searchBar.addEventListener('input', (e) => {
+            const text = e.target.value.toLowerCase();
+            const activeGrid = viewMain.style.display !== 'none' ? mainFoldersGrid : subFoldersGrid;
+            const items = activeGrid.querySelectorAll('.folder');
+            
+            items.forEach(item => {
+                const name = item.textContent.toLowerCase();
+                item.style.display = name.includes(text) ? 'block' : 'none';
+            });
+        });
+
+        // --- FUNCIONES DE INTERFAZ Y BASE DE DATOS ---
+        function loadMainFolders() {
+            mainFoldersGrid.innerHTML = '';
+            
+            carrerasFijas.forEach((carrera) => {
+                const div = document.createElement('div');
+                div.className = 'folder';
+                div.textContent = carrera;
+                // Usamos el nombre de la carrera directamente como ID para vincularla a sus ramos en la base de datos
+                div.onclick = () => openFolder(carrera, carrera);
+                mainFoldersGrid.appendChild(div);
+            });
+        }
+
+        async function openFolder(id, nombre) {
+            currentFolderId = id;
+            subTitle.textContent = nombre;
+            viewMain.style.display = 'none';
+            viewSub.style.display = 'block';
+            searchBar.value = ''; // Limpiar buscador al entrar
+
+            subFoldersGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7;">Cargando ramos...</p>';
+            const q = query(collection(db, "ramos"), where("carpetaId", "==", id));
+            const querySnapshot = await getDocs(q);
+            subFoldersGrid.innerHTML = '';
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const div = document.createElement('div');
+                div.className = 'folder';
+                div.textContent = data.nombre;
+                subFoldersGrid.appendChild(div);
+            });
+
+            // Botón estético para añadir ramo
+            const btnAdd = document.createElement('div');
+            btnAdd.className = 'folder';
+            btnAdd.style.backgroundColor = 'rgba(255,255,255,0.05)';
+            btnAdd.style.border = '1px dashed rgba(255,255,255,0.4)';
+            btnAdd.style.boxShadow = 'none';
+            btnAdd.textContent = '+ Agregar Ramo';
+            btnAdd.onclick = () => openInputModal('Nuevo Ramo', 'ramo');
+            subFoldersGrid.appendChild(btnAdd);
+        }
+
+        btnBack.onclick = () => {
+            viewSub.style.display = 'none';
+            viewMain.style.display = 'block';
+            currentFolderId = null;
+            searchBar.value = ''; // Limpiar buscador al salir
+            
+            // Refrescar buscador de carreras
+            const items = mainFoldersGrid.querySelectorAll('.folder');
+            items.forEach(item => item.style.display = 'block');
+        };
+
+        // --- CONTROL DEL MODAL DE INGRESO ---
+        function openInputModal(title, type) {
+            inputTitle.textContent = title;
+            inputValue.value = '';
+            actionType = type;
+            inputOverlay.style.display = 'flex';
+            setTimeout(() => inputOverlay.style.opacity = '1', 50);
+            inputValue.focus();
+        }
+
+        btnInputCancel.onclick = () => {
+            inputOverlay.style.opacity = '0';
+            setTimeout(() => inputOverlay.style.display = 'none', 500);
+        };
+
+        btnInputSave.onclick = async () => {
+            const val = inputValue.value.trim();
+            if (!val) return;
+
+            btnInputSave.disabled = true;
+            btnInputSave.textContent = 'Guardando...';
+
+            try {
+                if (actionType === 'ramo') {
+                    await addDoc(collection(db, "ramos"), { nombre: val, carpetaId: currentFolderId, fecha: new Date() });
+                    await openFolder(currentFolderId, subTitle.textContent);
+                }
+                btnInputCancel.click(); // Cerrar modal si fue exitoso
+            } catch (e) {
+                alert('Error de permisos o conexión. Asegúrate de haber iniciado sesión correctamente.');
+            }
+
+            btnInputSave.disabled = false;
+            btnInputSave.textContent = 'Guardar';
+        };
+
+        function showMsg(msg, color = '#ffcccc') {
+            errorMsg.textContent = msg;
+            errorMsg.style.color = color;
+            errorMsg.style.display = 'block';
+            setTimeout(() => errorMsg.style.display = 'none', 6000);
+        }
+
+        // --- LÓGICA DE REGISTRO / LOGIN ---
+        document.getElementById('btn-register').addEventListener('click', () => {
+            const email = emailInput.value.trim().toLowerCase();
+            const password = passwordInput.value;
+
+            if (!email.endsWith('@uc.cl') && !email.endsWith('@estudiante.uc.cl')) {
+                showMsg('Solo correos @uc.cl o @estudiante.uc.cl permitidos.');
+                return;
+            }
+
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((cred) => {
+                    sendEmailVerification(cred.user).then(() => {
+                        showMsg('Cuenta creada. Revisa tu correo UC para verificarla.', '#a8e6cf');
+                        signOut(auth);
+                    });
+                })
+                .catch(err => showMsg(err.message));
+        });
+
+        document.getElementById('btn-login').addEventListener('click', () => {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then((cred) => {
+                    if (!cred.user.emailVerified) {
+                        showMsg('Debes verificar tu correo UC primero.');
+                        signOut(auth);
+                    }
+                })
+                .catch(err => showMsg('Credenciales incorrectas.'));
+        });
+
+        btnLogoutUI.addEventListener('click', () => signOut(auth));
+
+        // --- CONTROLADOR DE ESTADO (AUTH STATE) ---
+        onAuthStateChanged(auth, (user) => {
+            if (user && user.emailVerified) {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    dashboard.style.display = 'flex';
+                    btnLogoutUI.style.display = 'block';
+                    loadMainFolders(); // Cargar carreras al entrar
+                }, 500);
+            } else {
+                dashboard.style.display = 'none';
+                btnLogoutUI.style.display = 'none';
+                overlay.style.display = 'flex';
+                setTimeout(() => overlay.style.opacity = '1', 50);
+            }
+        });
+    </script>
+</body>
+</html>
