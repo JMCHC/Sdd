@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Base de Datos UC</title>
+    <title>Solidaridad Apoya</title>
     <style>
         /* VARIABLES Y RESET */
         :root {
@@ -106,6 +106,28 @@
         }
         .folder:hover { transform: translateY(-8px); }
         .header-title { margin-bottom: 20px; font-weight: 300; letter-spacing: 1px; width: 100%; }
+
+        /* ITEM NOTA */
+        .nota-item {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 16px; padding: 20px;
+            display: flex; flex-direction: column; gap: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        .nota-header {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 1.2em; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;
+        }
+        .nota-details {
+            display: flex; justify-content: space-between; font-size: 1.1em;
+        }
+        .promedio-box {
+            background: rgba(255,255,255,0.1); padding: 15px 30px; border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.2); margin-bottom: 30px;
+            font-size: 1.3em; font-weight: 500; backdrop-filter: blur(10px);
+        }
         
         /* MENÚ DE USUARIO (HAMBURGUESA) */
         .user-menu-container {
@@ -161,7 +183,7 @@
         </div>
     </div>
 
-    <!-- OVERLAY PARA AÑADIR DATOS (RAMOS) -->
+    <!-- OVERLAYS PARA REPOSITORIO ORIGINAL -->
     <div id="input-overlay" class="auth-overlay" style="display: none; z-index: 1001;">
         <div class="auth-modal">
             <h2 id="input-title">Nuevo Ramo</h2>
@@ -169,6 +191,31 @@
             <div class="auth-buttons">
                 <button id="btn-input-cancel" class="btn-secondary">Cancelar</button>
                 <button id="btn-input-save" class="btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAYS PARA MIS NOTAS -->
+    <div id="overlay-mi-ramo" class="auth-overlay" style="display: none; z-index: 1001;">
+        <div class="auth-modal">
+            <h2>Nuevo Ramo Personal</h2>
+            <input type="text" id="input-mi-ramo" class="input-field" placeholder="Ej. Cálculo I">
+            <div class="auth-buttons">
+                <button id="btn-cancel-mi-ramo" class="btn-secondary">Cancelar</button>
+                <button id="btn-save-mi-ramo" class="btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay-mi-nota" class="auth-overlay" style="display: none; z-index: 1001;">
+        <div class="auth-modal">
+            <h2>Agregar Evaluación</h2>
+            <input type="text" id="input-nota-nombre" class="input-field" placeholder="Nombre (ej. I1)">
+            <input type="number" id="input-nota-porcentaje" class="input-field" placeholder="Porcentaje (ej. 25) %" min="0" max="100">
+            <input type="number" id="input-nota-valor" class="input-field" placeholder="Nota (ej. 6.5)" step="0.1" min="1" max="7">
+            <div class="auth-buttons">
+                <button id="btn-cancel-mi-nota" class="btn-secondary">Cancelar</button>
+                <button id="btn-save-mi-nota" class="btn-primary">Guardar</button>
             </div>
         </div>
     </div>
@@ -185,6 +232,7 @@
             <span></span>
         </button>
         <div id="dropdown-menu" class="dropdown-menu">
+            <button id="btn-inicio" class="dropdown-item">Inicio</button>
             <button id="btn-mis-notas" class="dropdown-item">Mis notas</button>
             <button id="btn-logout" class="dropdown-item">Cerrar sesión</button>
         </div>
@@ -193,7 +241,7 @@
     <div class="dashboard" id="dashboard" style="display: none;">
         <img src="https://lh3.googleusercontent.com/pw/AP1GczM-QDLV4_StoQYFE9fpmfm2AjaXbodPfWn5iZcmR0C3W_yrnM1P69rQ-UL97rllE-OVF4Zz7ZrhxT6AhbLpVzR1-MURUIj9RTF7UXoXZwv2oNBoV8ULKilizJBb27YYpWLeDTZTQk0sP44b1wyfxFz3KQ=w599-h599-s-no-gm?authuser=0" alt="Logo SddApoya" class="main-logo">
         
-        <div class="search-container">
+        <div class="search-container" id="search-container">
             <input type="text" id="search-bar" class="search-bar" placeholder="Buscar carreras, ramos, archivos...">
         </div>
 
@@ -220,6 +268,28 @@
             </div>
             <div id="upload-status" style="width: 100%; text-align: center; color: #a8e6cf; margin-bottom: 15px; display: none;">Convirtiendo y subiendo archivo... (Puede tomar unos segundos)</div>
             <div class="folders-grid" id="archivos-grid"></div>
+        </div>
+
+        <!-- SECCIÓN MIS NOTAS: RAMOS PERSONALES -->
+        <div id="view-mis-notas" style="width: 100%; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%;">
+                <h2 class="header-title" style="margin-bottom: 0; font-weight: 500;">Ramos Personales</h2>
+            </div>
+            <div class="folders-grid" id="mis-ramos-grid"></div>
+        </div>
+
+        <!-- SECCIÓN MIS NOTAS: DETALLE EVALUACIONES -->
+        <div id="view-detalle-notas" style="width: 100%; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%;">
+                <button id="btn-back-mis-notas" class="btn-secondary" style="flex: 0 1 auto; padding: 8px 16px; margin: 0;">⬅ Volver a Ramos</button>
+                <h2 class="header-title" id="title-mi-ramo" style="margin-bottom: 0; text-align: right; font-weight: 500;">Ramo</h2>
+            </div>
+            
+            <div style="display: flex; justify-content: center; width: 100%;">
+                <div class="promedio-box">Promedio Ponderado: <span id="promedio-valor">--</span></div>
+            </div>
+
+            <div class="folders-grid" id="mis-notas-grid"></div>
         </div>
 
     </div>
@@ -251,36 +321,68 @@
         const passwordInput = document.getElementById('auth-password');
         const errorMsg = document.getElementById('auth-error');
         
-        // Elementos del nuevo menú desplegable
+        // Menú Desplegable
         const userMenuContainer = document.getElementById('user-menu-container');
         const btnMenu = document.getElementById('btn-menu');
         const dropdownMenu = document.getElementById('dropdown-menu');
+        const btnInicio = document.getElementById('btn-inicio');
+        const btnMisNotasUI = document.getElementById('btn-mis-notas');
         const btnLogoutUI = document.getElementById('btn-logout');
         
+        const searchContainer = document.getElementById('search-container');
         const searchBar = document.getElementById('search-bar');
         
+        // Vistas
         const viewCarreras = document.getElementById('view-carreras');
         const viewRamos = document.getElementById('view-ramos');
         const viewArchivos = document.getElementById('view-archivos');
+        const viewMisNotas = document.getElementById('view-mis-notas');
+        const viewDetalleNotas = document.getElementById('view-detalle-notas');
+        
+        // Grids
         const carrerasGrid = document.getElementById('carreras-grid');
         const ramosGrid = document.getElementById('ramos-grid');
         const archivosGrid = document.getElementById('archivos-grid');
+        const misRamosGrid = document.getElementById('mis-ramos-grid');
+        const misNotasGrid = document.getElementById('mis-notas-grid');
         
         const titleCarrera = document.getElementById('title-carrera');
         const titleRamo = document.getElementById('title-ramo');
+        const titleMiRamo = document.getElementById('title-mi-ramo');
+        const promedioValor = document.getElementById('promedio-valor');
+        
         const btnBackCarreras = document.getElementById('btn-back-carreras');
         const btnBackRamos = document.getElementById('btn-back-ramos');
+        const btnBackMisNotas = document.getElementById('btn-back-mis-notas');
 
+        // Overlays
         const inputOverlay = document.getElementById('input-overlay');
         const inputValue = document.getElementById('input-value');
         const btnInputSave = document.getElementById('btn-input-save');
         const btnInputCancel = document.getElementById('btn-input-cancel');
+        
+        const overlayMiRamo = document.getElementById('overlay-mi-ramo');
+        const inputMiRamo = document.getElementById('input-mi-ramo');
+        const btnSaveMiRamo = document.getElementById('btn-save-mi-ramo');
+        const btnCancelMiRamo = document.getElementById('btn-cancel-mi-ramo');
+
+        const overlayMiNota = document.getElementById('overlay-mi-nota');
+        const inputNotaNombre = document.getElementById('input-nota-nombre');
+        const inputNotaPorcentaje = document.getElementById('input-nota-porcentaje');
+        const inputNotaValor = document.getElementById('input-nota-valor');
+        const btnSaveMiNota = document.getElementById('btn-save-mi-nota');
+        const btnCancelMiNota = document.getElementById('btn-cancel-mi-nota');
+
         const fileUpload = document.getElementById('file-upload');
         const uploadStatus = document.getElementById('upload-status');
 
         let currentCarrera = null;
         let currentRamoId = null;
         let currentRamoNombre = null;
+        
+        // Variables para Mis Notas
+        let currentMiRamoId = null;
+        let currentMiRamoNombre = null;
 
         // --- LÓGICA DEL MENÚ DESPLEGABLE ---
         btnMenu.addEventListener('click', (e) => {
@@ -288,11 +390,36 @@
             dropdownMenu.classList.toggle('show');
         });
 
-        // Ocultar el menú si se hace clic afuera
         document.addEventListener('click', (e) => {
             if (!userMenuContainer.contains(e.target)) {
                 dropdownMenu.classList.remove('show');
             }
+        });
+
+        // NAVEGACIÓN PRINCIPAL
+        function hideAllViews() {
+            viewCarreras.style.display = 'none';
+            viewRamos.style.display = 'none';
+            viewArchivos.style.display = 'none';
+            viewMisNotas.style.display = 'none';
+            viewDetalleNotas.style.display = 'none';
+        }
+
+        btnInicio.addEventListener('click', () => {
+            dropdownMenu.classList.remove('show');
+            hideAllViews();
+            searchContainer.style.display = 'block';
+            viewCarreras.style.display = 'block';
+            searchBar.value = '';
+            carrerasGrid.querySelectorAll('.folder').forEach(item => item.style.display = 'block');
+        });
+
+        btnMisNotasUI.addEventListener('click', () => {
+            dropdownMenu.classList.remove('show');
+            hideAllViews();
+            searchContainer.style.display = 'none';
+            viewMisNotas.style.display = 'block';
+            loadMisRamos();
         });
 
         const carrerasFijas = [
@@ -337,8 +464,7 @@
         async function openCarrera(nombreCarrera) {
             currentCarrera = nombreCarrera;
             titleCarrera.textContent = nombreCarrera;
-            viewCarreras.style.display = 'none';
-            viewArchivos.style.display = 'none';
+            hideAllViews();
             viewRamos.style.display = 'block';
             searchBar.value = '';
 
@@ -374,14 +500,13 @@
         }
 
         btnBackCarreras.onclick = () => {
-            viewRamos.style.display = 'none';
+            hideAllViews();
             viewCarreras.style.display = 'block';
             currentCarrera = null;
             searchBar.value = '';
             carrerasGrid.querySelectorAll('.folder').forEach(item => item.style.display = 'block');
         };
 
-        // Guardar Nuevo Ramo (Incluye el registro silencioso del creador)
         btnInputSave.onclick = async () => {
             const val = inputValue.value.trim();
             if (!val) return;
@@ -417,7 +542,7 @@
             currentRamoId = ramoId;
             currentRamoNombre = ramoNombre;
             titleRamo.textContent = ramoNombre;
-            viewRamos.style.display = 'none';
+            hideAllViews();
             viewArchivos.style.display = 'block';
             searchBar.value = '';
 
@@ -433,7 +558,6 @@
                     div.className = 'folder';
                     div.innerHTML = `📄 ${archivo.nombre}`;
                     
-                    // Al hacer click, abre una pestaña y renderiza el PDF base64
                     div.onclick = () => {
                         const win = window.open();
                         win.document.write(`<iframe src="${archivo.url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
@@ -454,25 +578,19 @@
 
         btnBackRamos.onclick = () => openCarrera(currentCarrera);
 
-        // Convertir PDF a Base64 y guardar en SQLite D1 (Con registro silencioso)
         fileUpload.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
             if (file.type !== 'application/pdf') {
                 alert('Solo se admiten archivos PDF.');
                 fileUpload.value = '';
                 return;
             }
-
             uploadStatus.style.display = 'block';
-            
-            // Lector nativo del navegador para evitar servidores externos
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = async () => {
                 const base64String = reader.result;
-                
                 try {
                     const response = await fetch(`${WORKER_URL}/archivos`, {
                         method: 'POST',
@@ -484,22 +602,194 @@
                             subidoPor: auth.currentUser.email
                         })
                     });
-                    
-                    if (!response.ok) throw new Error('Fallo la carga. Si el PDF tiene muchas páginas, intenta comprimirlo (límite de D1 SQLite).');
+                    if (!response.ok) throw new Error('Fallo la carga. Si el PDF tiene muchas páginas, intenta comprimirlo.');
                     await openRamo(currentRamoId, currentRamoNombre);
-                } catch (error) {
-                    alert('Error: ' + error.message);
-                }
-
+                } catch (error) { alert('Error: ' + error.message); }
                 uploadStatus.style.display = 'none';
                 fileUpload.value = ''; 
             };
-            
             reader.onerror = () => {
                 alert('Error al procesar el archivo en tu navegador.');
                 uploadStatus.style.display = 'none';
             };
         });
+
+        // -----------------------------------------
+        // --- SECCIÓN MIS NOTAS / RAMOS PROPIOS ---
+        // -----------------------------------------
+
+        async function loadMisRamos() {
+            misRamosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7;">Cargando tus ramos...</p>';
+            
+            try {
+                // Filtra usando el email para asegurar privacidad de los datos
+                const res = await fetch(`${WORKER_URL}/mis-ramos?email=${encodeURIComponent(auth.currentUser.email)}`);
+                const ramosData = await res.json();
+                misRamosGrid.innerHTML = '';
+
+                ramosData.forEach((ramo) => {
+                    const div = document.createElement('div');
+                    div.className = 'folder';
+                    div.textContent = ramo.nombre;
+                    div.onclick = () => openMiRamo(ramo.id, ramo.nombre);
+                    misRamosGrid.appendChild(div);
+                });
+            } catch(e) { misRamosGrid.innerHTML = '<p style="text-align:center; width:100%;">No se pudo conectar a tu base de datos.</p>'; }
+
+            const btnAdd = document.createElement('div');
+            btnAdd.className = 'folder';
+            btnAdd.style.backgroundColor = 'rgba(255,255,255,0.05)';
+            btnAdd.style.border = '1px dashed rgba(255,255,255,0.4)';
+            btnAdd.style.boxShadow = 'none';
+            btnAdd.textContent = '+ Crear Ramo Personal';
+            btnAdd.onclick = () => {
+                inputMiRamo.value = '';
+                overlayMiRamo.style.display = 'flex';
+                setTimeout(() => overlayMiRamo.style.opacity = '1', 50);
+                inputMiRamo.focus();
+            };
+            misRamosGrid.appendChild(btnAdd);
+        }
+
+        btnSaveMiRamo.onclick = async () => {
+            const val = inputMiRamo.value.trim();
+            if (!val) return;
+            btnSaveMiRamo.disabled = true;
+            btnSaveMiRamo.textContent = 'Guardando...';
+
+            try {
+                await fetch(`${WORKER_URL}/mis-ramos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nombre: val,
+                        email: auth.currentUser.email
+                    })
+                });
+                btnCancelMiRamo.click();
+                await loadMisRamos();
+            } catch (e) { alert('Error al guardar en tu base de datos.'); }
+            
+            btnSaveMiRamo.disabled = false;
+            btnSaveMiRamo.textContent = 'Guardar';
+        };
+
+        btnCancelMiRamo.onclick = () => {
+            overlayMiRamo.style.opacity = '0';
+            setTimeout(() => overlayMiRamo.style.display = 'none', 500);
+        };
+
+        // --- DETALLE DE NOTAS DE UN RAMO ---
+        async function openMiRamo(ramoId, ramoNombre) {
+            currentMiRamoId = ramoId;
+            currentMiRamoNombre = ramoNombre;
+            titleMiRamo.textContent = ramoNombre;
+            hideAllViews();
+            viewDetalleNotas.style.display = 'block';
+
+            misNotasGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7;">Cargando tus notas...</p>';
+            promedioValor.textContent = '--';
+            
+            try {
+                const res = await fetch(`${WORKER_URL}/mis-notas?ramoId=${ramoId}&email=${encodeURIComponent(auth.currentUser.email)}`);
+                const notasData = await res.json();
+                misNotasGrid.innerHTML = '';
+
+                let sumaPonderada = 0;
+                let porcentajeTotal = 0;
+
+                notasData.forEach((nota) => {
+                    const porc = parseFloat(nota.porcentaje) || 0;
+                    const val = parseFloat(nota.valor) || 0;
+                    
+                    sumaPonderada += (val * (porc / 100));
+                    porcentajeTotal += porc;
+
+                    const div = document.createElement('div');
+                    div.className = 'nota-item';
+                    div.innerHTML = `
+                        <div class="nota-header">
+                            <span>${nota.nombre}</span>
+                            <span>${nota.porcentaje}%</span>
+                        </div>
+                        <div class="nota-details">
+                            <span style="opacity: 0.8;">Nota Obtenida:</span>
+                            <span style="font-weight: bold; color: #a8e6cf;">${nota.valor}</span>
+                        </div>
+                    `;
+                    misNotasGrid.appendChild(div);
+                });
+
+                if (porcentajeTotal > 0) {
+                    // Si no llegan al 100%, se calcula el promedio acumulado sobre lo evaluado
+                    let promedioFinal = (sumaPonderada / (porcentajeTotal / 100)).toFixed(2);
+                    promedioValor.textContent = `${promedioFinal} (con ${porcentajeTotal}% evaluado)`;
+                } else {
+                    promedioValor.textContent = 'Sin evaluaciones';
+                }
+
+            } catch(e) { misNotasGrid.innerHTML = '<p style="text-align:center; width:100%;">No se pudo cargar la información.</p>'; }
+
+            const btnAddNota = document.createElement('div');
+            btnAddNota.className = 'folder';
+            btnAddNota.style.backgroundColor = 'rgba(255,255,255,0.05)';
+            btnAddNota.style.border = '1px dashed rgba(255,255,255,0.4)';
+            btnAddNota.style.boxShadow = 'none';
+            btnAddNota.textContent = '+ Agregar Evaluación';
+            btnAddNota.onclick = () => {
+                inputNotaNombre.value = '';
+                inputNotaPorcentaje.value = '';
+                inputNotaValor.value = '';
+                overlayMiNota.style.display = 'flex';
+                setTimeout(() => overlayMiNota.style.opacity = '1', 50);
+                inputNotaNombre.focus();
+            };
+            misNotasGrid.appendChild(btnAddNota);
+        }
+
+        btnBackMisNotas.onclick = () => {
+            hideAllViews();
+            viewMisNotas.style.display = 'block';
+            currentMiRamoId = null;
+        };
+
+        btnSaveMiNota.onclick = async () => {
+            const nombre = inputNotaNombre.value.trim();
+            const porcentaje = inputNotaPorcentaje.value.trim();
+            const valor = inputNotaValor.value.trim();
+            
+            if (!nombre || !porcentaje || !valor) {
+                alert("Por favor completa todos los campos de la evaluación.");
+                return;
+            }
+
+            btnSaveMiNota.disabled = true;
+            btnSaveMiNota.textContent = 'Guardando...';
+
+            try {
+                await fetch(`${WORKER_URL}/mis-notas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ramoId: currentMiRamoId,
+                        email: auth.currentUser.email,
+                        nombre: nombre,
+                        porcentaje: parseFloat(porcentaje),
+                        valor: parseFloat(valor)
+                    })
+                });
+                btnCancelMiNota.click();
+                await openMiRamo(currentMiRamoId, currentMiRamoNombre);
+            } catch (e) { alert('Error al guardar la nota en tu base de datos.'); }
+            
+            btnSaveMiNota.disabled = false;
+            btnSaveMiNota.textContent = 'Guardar';
+        };
+
+        btnCancelMiNota.onclick = () => {
+            overlayMiNota.style.opacity = '0';
+            setTimeout(() => overlayMiNota.style.display = 'none', 500);
+        };
 
         function showMsg(msg, color = '#ffcccc') {
             errorMsg.textContent = msg;
@@ -545,12 +835,12 @@
                 setTimeout(() => {
                     overlay.style.display = 'none';
                     dashboard.style.display = 'flex';
-                    userMenuContainer.style.display = 'block'; // Muestra el contenedor completo del menú
+                    userMenuContainer.style.display = 'block'; 
                     loadCarreras();
                 }, 500);
             } else {
                 dashboard.style.display = 'none';
-                userMenuContainer.style.display = 'none'; // Oculta el contenedor si no hay sesión
+                userMenuContainer.style.display = 'none'; 
                 overlay.style.display = 'flex';
                 setTimeout(() => overlay.style.opacity = '1', 50);
             }
