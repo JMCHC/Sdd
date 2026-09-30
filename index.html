@@ -82,7 +82,8 @@
             pointer-events: none;
         }
         
-        .search-container { width: 100%; max-width: 600px; margin-bottom: 40px; }
+        /* BUSCADOR Y DROPDOWN */
+        .search-container { width: 100%; max-width: 600px; margin-bottom: 40px; position: relative; }
         .search-bar {
             width: 100%; padding: 16px 24px; border-radius: 30px;
             background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
@@ -91,6 +92,23 @@
         }
         .search-bar::placeholder { color: rgba(255,255,255,0.7); }
         .search-bar:focus { background: rgba(255,255,255,0.15); outline: none; border-color: rgba(255,255,255,0.4); }
+
+        .search-results-dropdown {
+            position: absolute; top: 100%; left: 0; width: 100%;
+            background: rgba(30, 45, 60, 0.95); backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 16px;
+            margin-top: 10px; max-height: 350px; overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 2000;
+            display: flex; flex-direction: column;
+        }
+        .search-item {
+            padding: 12px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex; flex-direction: column; transition: 0.2s; text-align: left;
+        }
+        .search-item:hover { background: rgba(255,255,255,0.15); }
+        .search-item:last-child { border-bottom: none; }
+        .search-item-title { font-weight: 600; font-size: 1.05em; color: #fff; }
+        .search-item-type { font-size: 0.8em; opacity: 0.8; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; color: #a8e6cf;}
 
         /* CARPETAS ROJAS PREMIUM */
         .folders-grid {
@@ -294,8 +312,10 @@
     <div class="dashboard" id="dashboard" style="display: none;">
         <img src="https://lh3.googleusercontent.com/pw/AP1GczM-QDLV4_StoQYFE9fpmfm2AjaXbodPfWn5iZcmR0C3W_yrnM1P69rQ-UL97rllE-OVF4Zz7ZrhxT6AhbLpVzR1-MURUIj9RTF7UXoXZwv2oNBoV8ULKilizJBb27YYpWLeDTZTQk0sP44b1wyfxFz3KQ=w599-h599-s-no-gm?authuser=0" alt="Logo SddApoya" class="main-logo">
         
+        <!-- BUSCADOR GLOBAL CON DROPDOWN -->
         <div class="search-container" id="search-container">
             <input type="text" id="search-bar" class="search-bar" placeholder="Buscar carreras, ramos, archivos...">
+            <div id="search-results" class="search-results-dropdown" style="display: none;"></div>
         </div>
 
         <!-- NIVEL 1: CARRERAS -->
@@ -362,8 +382,9 @@
 
     <!-- LÓGICA DE FIREBASE AUTH Y CLOUDFLARE D1 -->
     <script type="module">
+        // NUEVO: Agregamos setPersistence y browserSessionPersistence
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         // URL del backend seguro en Cloudflare
         const WORKER_URL = "https://sdd-backend.christensenjosemanuel.workers.dev";
@@ -398,6 +419,7 @@
         
         const searchContainer = document.getElementById('search-container');
         const searchBar = document.getElementById('search-bar');
+        const searchResults = document.getElementById('search-results');
         
         // Vistas
         const viewCarreras = document.getElementById('view-carreras');
@@ -449,19 +471,18 @@
         let isAddingExam = false; 
         let currentEditNotaId = null; 
         
-        // Control de Administrador
         let isAdminUser = false;
+        let searchTimeout = null;
 
-        // --- LÓGICA DEL MENÚ DESPLEGABLE ---
+        // --- LÓGICA DEL MENÚ DESPLEGABLE Y CLICS FUERA ---
         btnMenu.addEventListener('click', (e) => {
             e.stopPropagation();
             dropdownMenu.classList.toggle('show');
         });
 
         document.addEventListener('click', (e) => {
-            if (!userMenuContainer.contains(e.target)) {
-                dropdownMenu.classList.remove('show');
-            }
+            if (!userMenuContainer.contains(e.target)) dropdownMenu.classList.remove('show');
+            if (!searchContainer.contains(e.target)) searchResults.style.display = 'none';
         });
 
         // NAVEGACIÓN PRINCIPAL
@@ -498,19 +519,74 @@
             loadAdminUsers();
         });
 
-        // --- BUSCADOR GLOBAL ---
+        // --- BUSCADOR GLOBAL EN TIEMPO REAL ---
         searchBar.addEventListener('input', (e) => {
-            const text = e.target.value.toLowerCase();
+            const query = e.target.value.trim();
+            
+            if (query.length === 0) {
+                searchResults.style.display = 'none';
+                searchResults.innerHTML = '';
+                
+                let activeGrid = viewCarreras.style.display !== 'none' ? carrerasGrid : 
+                                (viewRamos.style.display !== 'none' ? ramosGrid : archivosGrid);
+                activeGrid.querySelectorAll('.folder').forEach(item => item.style.display = 'flex');
+                return;
+            }
+
+            // Oculta las carpetas locales temporalmente
             let activeGrid = viewCarreras.style.display !== 'none' ? carrerasGrid : 
                             (viewRamos.style.display !== 'none' ? ramosGrid : archivosGrid);
-
             activeGrid.querySelectorAll('.folder').forEach(item => {
                 const name = item.textContent.toLowerCase();
-                item.style.display = name.includes(text) ? 'flex' : 'none';
+                item.style.display = name.includes(query.toLowerCase()) ? 'flex' : 'none';
             });
+
+            // Llamada al Backend para buscar en toda la BD
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                if (query.length < 2) return;
+                try {
+                    searchResults.innerHTML = '<div style="padding:15px; text-align:center; opacity:0.7;">Buscando en la nube...</div>';
+                    searchResults.style.display = 'flex';
+                    
+                    const res = await fetch(`${WORKER_URL}/search?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+                    
+                    if (data.length === 0) {
+                        searchResults.innerHTML = '<div style="padding:15px; text-align:center; opacity:0.7;">No se encontraron resultados</div>';
+                        return;
+                    }
+
+                    searchResults.innerHTML = '';
+                    data.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'search-item';
+                        div.innerHTML = `
+                            <span class="search-item-title">${item.title}</span>
+                            <span class="search-item-type">${item.type} ${item.extra && item.type === 'ramo' ? `(Carrera: ${item.extra})` : ''}</span>
+                        `;
+                        div.onclick = () => {
+                            searchResults.style.display = 'none';
+                            searchBar.value = '';
+                            if (item.type === 'carrera') {
+                                openCarrera(item.title);
+                            } else if (item.type === 'ramo') {
+                                currentCarrera = item.extra;
+                                openRamo(item.id, item.title);
+                            } else if (item.type === 'archivo') {
+                                const win = window.open();
+                                win.document.write(`<iframe src="${item.extra}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                            }
+                        };
+                        searchResults.appendChild(div);
+                    });
+                } catch(e) {
+                    searchResults.innerHTML = '<div style="padding:15px; text-align:center; color:#ffcccc;">Error de conexión con la base de datos</div>';
+                }
+            }, 300);
         });
 
-        // --- NIVEL 1: CARRERAS (AHORA DESDE LA BASE DE DATOS) ---
+        // --- NIVEL 1: CARRERAS (DESDE LA BASE DE DATOS) ---
         async function loadCarreras() {
             carrerasGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7; grid-column:1/-1;">Cargando carreras...</p>';
             try {
@@ -819,12 +895,14 @@
                             <td style="color:#a8e6cf; font-weight:bold;">${nota.valor}</td>
                             <td style="min-width: 55px;">
                                 <button class="btn-icon" onclick="window.openEditNotaModal(${nota.id}, ${ramo.id}, '${nota.nombre.replace(/'/g, "\\'")}', ${nota.porcentaje}, ${nota.valor}, false)" title="Editar">✏️</button>
-                                <button class="btn-icon" onclick="window.deleteNota(${nota.id})" title="Eliminar">🗑️️</button>
+                                <button class="btn-icon" onclick="window.deleteNota(${nota.id})" title="Eliminar">🗑</button>
                             </td>
                         </tr>`;
                     });
 
                     let promedioBase = 0;
+                    let roundedPorcentaje = Math.round(porcentajeTotal);
+                    
                     if (porcentajeTotal > 0) {
                         promedioBase = sumaPonderada / (porcentajeTotal / 100);
                     }
@@ -863,9 +941,8 @@
 
                     let avgDisplay = hasEvaluations ? notaFinal.toFixed(2) : '--';
                     
-                    // NUEVO: Lógica de Nota Necesaria para pasar
+                    // Lógica de Nota Necesaria para pasar
                     let notaNecesariaHtml = '';
-                    let roundedPorcentaje = Math.round(porcentajeTotal);
                     
                     if (!examenNota && roundedPorcentaje < 100) {
                         let pesoRestante = 100 - porcentajeTotal;
@@ -904,7 +981,6 @@
 
                     const actionsDiv = card.querySelector('.card-actions');
                     
-                    // Botón + Evaluación siempre disponible
                     const btnNota = document.createElement('button');
                     btnNota.className = 'btn-small btn-add-nota';
                     btnNota.textContent = '+ Evaluación';
@@ -914,7 +990,7 @@
                     };
                     actionsDiv.appendChild(btnNota);
 
-                    // Botón ⭐ Examen SOLO si NO hay examen Y se alcanzó el 100%
+                    // Botón de Examen se oculta si ya existe un examen o si las notas NO suman exactamente el 100%
                     if (!examenNota && roundedPorcentaje >= 100) {
                         const btnExam = document.createElement('button');
                         btnExam.className = 'btn-small btn-add-exam';
@@ -1198,25 +1274,30 @@
                 showMsg('Solo correos @uc.cl o @estudiante.uc.cl permitidos.');
                 return;
             }
-            createUserWithEmailAndPassword(auth, email, password)
-                .then((cred) => {
-                    sendEmailVerification(cred.user).then(() => {
-                        showMsg('Cuenta creada. Revisa tu correo UC para verificarla.', '#a8e6cf');
-                        signOut(auth);
-                    });
-                }).catch(err => showMsg(err.message));
+            
+            setPersistence(auth, browserSessionPersistence).then(() => {
+                return createUserWithEmailAndPassword(auth, email, password);
+            }).then((cred) => {
+                sendEmailVerification(cred.user).then(() => {
+                    showMsg('Cuenta creada. Revisa tu correo UC para verificarla.', '#a8e6cf');
+                    signOut(auth);
+                });
+            }).catch(err => showMsg(err.message));
         });
 
         document.getElementById('btn-login').addEventListener('click', () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value;
-            signInWithEmailAndPassword(auth, email, password)
-                .then((cred) => {
-                    if (!cred.user.emailVerified) {
-                        showMsg('Debes verificar tu correo UC primero.');
-                        signOut(auth);
-                    }
-                }).catch(err => showMsg('Credenciales incorrectas.'));
+            
+            // Forzar el uso de Sesión (se borra al cerrar pestaña/navegador)
+            setPersistence(auth, browserSessionPersistence).then(() => {
+                return signInWithEmailAndPassword(auth, email, password);
+            }).then((cred) => {
+                if (!cred.user.emailVerified) {
+                    showMsg('Debes verificar tu correo UC primero.');
+                    signOut(auth);
+                }
+            }).catch(err => showMsg('Credenciales incorrectas.'));
         });
 
         btnLogoutUI.addEventListener('click', () => {
