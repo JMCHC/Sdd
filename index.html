@@ -107,13 +107,37 @@
         .folder:hover { transform: translateY(-8px); }
         .header-title { margin-bottom: 20px; font-weight: 300; letter-spacing: 1px; width: 100%; }
         
-        /* Botón de cerrar sesión */
-        .btn-logout {
-            position: absolute; top: 20px; right: 20px;
-            background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3);
-            padding: 8px 16px; border-radius: 20px; cursor: pointer;
+        /* MENÚ DE USUARIO (HAMBURGUESA) */
+        .user-menu-container {
+            position: absolute; top: 20px; right: 20px; z-index: 100;
         }
-        .btn-logout:hover { background: rgba(255,255,255,0.1); }
+        .hamburger-btn {
+            background: transparent; border: 1px solid rgba(255,255,255,0.3);
+            padding: 10px; border-radius: 12px; cursor: pointer;
+            display: flex; flex-direction: column; gap: 5px;
+            transition: background 0.2s;
+        }
+        .hamburger-btn:hover { background: rgba(255,255,255,0.1); }
+        .hamburger-btn span {
+            display: block; width: 22px; height: 2px;
+            background-color: white; border-radius: 2px;
+        }
+        .dropdown-menu {
+            position: absolute; top: 100%; right: 0; margin-top: 10px;
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            display: none; flex-direction: column; overflow: hidden;
+            min-width: 160px;
+        }
+        .dropdown-menu.show { display: flex; }
+        .dropdown-item {
+            background: transparent; border: none; color: white;
+            padding: 14px 20px; text-align: left; cursor: pointer;
+            font-size: 1em; font-weight: 500; transition: background 0.2s;
+        }
+        .dropdown-item:hover { background: rgba(255,255,255,0.2); }
+        .dropdown-item:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.1); }
     </style>
 </head>
 <body>
@@ -153,7 +177,18 @@
     <input type="file" id="file-upload" accept="application/pdf" style="display: none;">
 
     <!-- INTERFAZ PRINCIPAL -->
-    <button id="btn-logout" class="btn-logout" style="display: none;">Cerrar Sesión</button>
+    <!-- MENÚ DE USUARIO DESPLEGABLE -->
+    <div id="user-menu-container" class="user-menu-container" style="display: none;">
+        <button id="btn-menu" class="hamburger-btn">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <div id="dropdown-menu" class="dropdown-menu">
+            <button id="btn-mis-notas" class="dropdown-item">Mis notas</button>
+            <button id="btn-logout" class="dropdown-item">Cerrar sesión</button>
+        </div>
+    </div>
     
     <div class="dashboard" id="dashboard" style="display: none;">
         <img src="https://lh3.googleusercontent.com/pw/AP1GczM-QDLV4_StoQYFE9fpmfm2AjaXbodPfWn5iZcmR0C3W_yrnM1P69rQ-UL97rllE-OVF4Zz7ZrhxT6AhbLpVzR1-MURUIj9RTF7UXoXZwv2oNBoV8ULKilizJBb27YYpWLeDTZTQk0sP44b1wyfxFz3KQ=w599-h599-s-no-gm?authuser=0" alt="Logo SddApoya" class="main-logo">
@@ -194,7 +229,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // URL del backend seguro en Cloudflare (AQUÍ ESTÁ TU NUEVO WORKER)
+        // URL del backend seguro en Cloudflare
         const WORKER_URL = "https://sdd-backend.christensenjosemanuel.workers.dev";
 
         const firebaseConfig = {
@@ -215,7 +250,13 @@
         const emailInput = document.getElementById('auth-email');
         const passwordInput = document.getElementById('auth-password');
         const errorMsg = document.getElementById('auth-error');
+        
+        // Elementos del nuevo menú desplegable
+        const userMenuContainer = document.getElementById('user-menu-container');
+        const btnMenu = document.getElementById('btn-menu');
+        const dropdownMenu = document.getElementById('dropdown-menu');
         const btnLogoutUI = document.getElementById('btn-logout');
+        
         const searchBar = document.getElementById('search-bar');
         
         const viewCarreras = document.getElementById('view-carreras');
@@ -240,6 +281,19 @@
         let currentCarrera = null;
         let currentRamoId = null;
         let currentRamoNombre = null;
+
+        // --- LÓGICA DEL MENÚ DESPLEGABLE ---
+        btnMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdownMenu.classList.toggle('show');
+        });
+
+        // Ocultar el menú si se hace clic afuera
+        document.addEventListener('click', (e) => {
+            if (!userMenuContainer.contains(e.target)) {
+                dropdownMenu.classList.remove('show');
+            }
+        });
 
         const carrerasFijas = [
             "Actuación", "Administración Pública", "Agronomía", "Antropología", "Arqueología",
@@ -491,12 +545,12 @@
                 setTimeout(() => {
                     overlay.style.display = 'none';
                     dashboard.style.display = 'flex';
-                    btnLogoutUI.style.display = 'block';
+                    userMenuContainer.style.display = 'block'; // Muestra el contenedor completo del menú
                     loadCarreras();
                 }, 500);
             } else {
                 dashboard.style.display = 'none';
-                btnLogoutUI.style.display = 'none';
+                userMenuContainer.style.display = 'none'; // Oculta el contenedor si no hay sesión
                 overlay.style.display = 'flex';
                 setTimeout(() => overlay.style.opacity = '1', 50);
             }
