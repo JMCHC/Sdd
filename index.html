@@ -151,7 +151,7 @@
         .btn-icon { background: transparent; border: none; cursor: pointer; color: white; opacity: 0.6; transition: 0.2s; font-size: 1.1em; padding: 2px 4px; }
         .btn-icon:hover { opacity: 1; transform: scale(1.1); }
         
-        /* BOTÓN ELIMINAR DOC (ADMIN) */
+        /* BOTÓN ELIMINAR DOC Y RAMOS (ADMIN) */
         .btn-delete-doc {
             position: absolute; right: 10px; top: 10px;
             background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.3);
@@ -237,11 +237,11 @@
         </div>
     </div>
 
-    <!-- OVERLAYS PARA REPOSITORIO ORIGINAL -->
+    <!-- OVERLAYS PARA REPOSITORIO ORIGINAL (CARRERAS Y RAMOS) -->
     <div id="input-overlay" class="auth-overlay" style="display: none; z-index: 1001;">
         <div class="auth-modal">
-            <h2 id="input-title">Nuevo Ramo</h2>
-            <input type="text" id="input-value" class="input-field" placeholder="Nombre del Ramo...">
+            <h2 id="input-title">Nuevo</h2>
+            <input type="text" id="input-value" class="input-field" placeholder="Nombre...">
             <div class="auth-buttons">
                 <button id="btn-input-cancel" class="btn-secondary">Cancelar</button>
                 <button id="btn-input-save" class="btn-primary">Guardar</button>
@@ -419,7 +419,13 @@
         const btnBackCarreras = document.getElementById('btn-back-carreras');
         const btnBackRamos = document.getElementById('btn-back-ramos');
 
-        // Overlays Mis Notas
+        // Overlays
+        const inputOverlay = document.getElementById('input-overlay');
+        const inputTitle = document.getElementById('input-title');
+        const inputValue = document.getElementById('input-value');
+        const btnInputSave = document.getElementById('btn-input-save');
+        const btnInputCancel = document.getElementById('btn-input-cancel');
+        
         const overlayMiRamo = document.getElementById('overlay-mi-ramo');
         const inputMiRamo = document.getElementById('input-mi-ramo');
         const btnSaveMiRamo = document.getElementById('btn-save-mi-ramo');
@@ -433,11 +439,6 @@
         const btnSaveMiNota = document.getElementById('btn-save-mi-nota');
         const btnCancelMiNota = document.getElementById('btn-cancel-mi-nota');
 
-        // Inputs Originales
-        const inputOverlay = document.getElementById('input-overlay');
-        const inputValue = document.getElementById('input-value');
-        const btnInputSave = document.getElementById('btn-input-save');
-        const btnInputCancel = document.getElementById('btn-input-cancel');
         const fileUpload = document.getElementById('file-upload');
         const uploadStatus = document.getElementById('upload-status');
 
@@ -479,7 +480,7 @@
             searchContainer.style.display = 'block';
             viewCarreras.style.display = 'block';
             searchBar.value = '';
-            carrerasGrid.querySelectorAll('.folder').forEach(item => item.style.display = 'block');
+            carrerasGrid.querySelectorAll('.folder').forEach(item => item.style.display = 'flex');
         });
 
         btnMisNotasUI.addEventListener('click', () => {
@@ -498,20 +499,6 @@
             loadAdminUsers();
         });
 
-        const carrerasFijas = [
-            "Actuación", "Administración Pública", "Agronomía", "Antropología", "Arqueología",
-            "Arquitectura", "Arte", "Astronomía", "Bachillerato Inicia en Ciencias Naturales y Matemática",
-            "Bachillerato Inicia en Ciencias Sociales", "Biología", "Biología Marina", "Bioquímica", "Ciencia Política", 
-            "College Artes y Humanidades", "College Ciencias Naturales y Matemáticas", "College Ciencias Sociales",
-            "Construcción Civil", "Derecho", "Dirección Audiovisual", "Diseño", "Enfermería", "Estadística", "Estética",
-            "Filosofía", "Física", "Fonoaudiología", "Geografía", "Historia", "Ingeniería", "Ingeniería Comercial",
-            "Ingeniería en Recursos Naturales", "Ingeniería Forestal", "Interpretación Musical", "Kinesiología",
-            "Letras Hispánicas", "Letras Inglesas", "Licenciatura en Ingeniería en Ciencia de Datos",
-            "Licenciatura en Ingeniería en Ciencia de la Computación", "Matemática", "Medicina", "Medicina Veterinaria",
-            "Música", "Nutrición y Dietética", "Odontología", "Pedagogías", "Periodismo", "Planificación Urbana", 
-            "Psicología", "Publicidad", "Química", "Química y Farmacia", "Sociología", "Teología", "Terapia Ocupacional", "Trabajo Social"
-        ];
-
         // --- BUSCADOR GLOBAL ---
         searchBar.addEventListener('input', (e) => {
             const text = e.target.value.toLowerCase();
@@ -520,20 +507,88 @@
 
             activeGrid.querySelectorAll('.folder').forEach(item => {
                 const name = item.textContent.toLowerCase();
-                item.style.display = name.includes(text) ? 'flex' : 'none'; // 'flex' because .folder is flex now
+                item.style.display = name.includes(text) ? 'flex' : 'none';
             });
         });
 
-        // --- NIVEL 1: CARRERAS ---
-        function loadCarreras() {
-            carrerasGrid.innerHTML = '';
-            carrerasFijas.forEach((carrera) => {
-                const div = document.createElement('div');
-                div.className = 'folder';
-                div.textContent = carrera;
-                div.onclick = () => openCarrera(carrera);
-                carrerasGrid.appendChild(div);
-            });
+        // --- NIVEL 1: CARRERAS (AHORA DESDE LA BASE DE DATOS) ---
+        async function loadCarreras() {
+            carrerasGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7; grid-column:1/-1;">Cargando carreras...</p>';
+            try {
+                const res = await fetch(`${WORKER_URL}/carreras`);
+                const carrerasData = await res.json();
+                carrerasGrid.innerHTML = '';
+
+                carrerasData.forEach((carrera) => {
+                    const div = document.createElement('div');
+                    div.className = 'folder';
+                    div.textContent = carrera.nombre;
+                    div.onclick = () => openCarrera(carrera.nombre);
+
+                    // Si es Admin, inyecta botón de basura en el div de la carrera
+                    if (isAdminUser) {
+                        const delBtn = document.createElement('div');
+                        delBtn.className = 'btn-delete-doc';
+                        delBtn.innerHTML = '🗑️️';
+                        delBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            deleteCarreraGlobal(carrera.nombre);
+                        };
+                        div.appendChild(delBtn);
+                    }
+                    carrerasGrid.appendChild(div);
+                });
+
+                // Botón Agregar Carrera (Solo visible para Admin)
+                if (isAdminUser) {
+                    const btnAdd = document.createElement('div');
+                    btnAdd.className = 'folder';
+                    btnAdd.style.backgroundColor = 'rgba(255, 215, 0, 0.05)';
+                    btnAdd.style.border = '1px dashed #FFD700';
+                    btnAdd.style.color = '#FFD700';
+                    btnAdd.style.boxShadow = 'none';
+                    btnAdd.textContent = '+ Agregar Carrera';
+                    btnAdd.onclick = () => {
+                        inputTitle.textContent = 'Nueva Carrera';
+                        inputValue.placeholder = 'Nombre de la carrera...';
+                        inputValue.value = '';
+                        btnInputSave.onclick = saveCarreraGlobal; // Asignamos la función de guardar carrera
+                        inputOverlay.style.display = 'flex';
+                        setTimeout(() => inputOverlay.style.opacity = '1', 50);
+                        inputValue.focus();
+                    };
+                    carrerasGrid.appendChild(btnAdd);
+                }
+
+            } catch(e) { carrerasGrid.innerHTML = '<p style="text-align:center; width:100%; grid-column:1/-1;">Error al conectar con la base de datos.</p>'; }
+        }
+
+        async function saveCarreraGlobal() {
+            const val = inputValue.value.trim();
+            if (!val) return;
+            btnInputSave.disabled = true;
+            btnInputSave.textContent = 'Guardando...';
+
+            try {
+                await fetch(`${WORKER_URL}/carreras`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre: val, requester: auth.currentUser.email })
+                });
+                btnInputCancel.click();
+                await loadCarreras();
+            } catch (e) { alert('Error de conexión con Cloudflare D1.'); }
+            btnInputSave.disabled = false;
+            btnInputSave.textContent = 'Guardar';
+        }
+
+        async function deleteCarreraGlobal(carreraNombre) {
+            if(!confirm(`⚠️ ADMIN: ¿Borrar definitivamente la carrera "${carreraNombre}" y TODOS sus ramos?`)) return;
+            try {
+                const res = await fetch(`${WORKER_URL}/carreras?nombre=${encodeURIComponent(carreraNombre)}&requester=${encodeURIComponent(auth.currentUser.email)}`, { method: 'DELETE' });
+                if(!res.ok) throw new Error("No tienes permisos o falló el servidor");
+                await loadCarreras();
+            } catch(e) { alert(e.message); }
         }
 
         // --- NIVEL 2: RAMOS ---
@@ -556,6 +611,18 @@
                     div.className = 'folder';
                     div.textContent = ramo.nombre;
                     div.onclick = () => openRamo(ramo.id, ramo.nombre);
+
+                    // Si es Admin, inyecta botón de basura en el div del ramo
+                    if (isAdminUser) {
+                        const delBtn = document.createElement('div');
+                        delBtn.className = 'btn-delete-doc';
+                        delBtn.innerHTML = '🗑️';
+                        delBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            deleteRamoGlobal(ramo.id);
+                        };
+                        div.appendChild(delBtn);
+                    }
                     ramosGrid.appendChild(div);
                 });
             } catch(e) { ramosGrid.innerHTML = '<p style="text-align:center; width:100%; grid-column:1/-1;">Error al conectar con la base de datos.</p>'; }
@@ -567,7 +634,10 @@
             btnAdd.style.boxShadow = 'none';
             btnAdd.textContent = '+ Agregar Ramo';
             btnAdd.onclick = () => {
+                inputTitle.textContent = 'Nuevo Ramo';
+                inputValue.placeholder = 'Nombre del ramo...';
                 inputValue.value = '';
+                btnInputSave.onclick = saveRamoGlobal; // Asignamos la función de guardar ramo
                 inputOverlay.style.display = 'flex';
                 setTimeout(() => inputOverlay.style.opacity = '1', 50);
                 inputValue.focus();
@@ -583,7 +653,7 @@
             carrerasGrid.querySelectorAll('.folder').forEach(item => item.style.display = 'flex');
         };
 
-        btnInputSave.onclick = async () => {
+        async function saveRamoGlobal() {
             const val = inputValue.value.trim();
             if (!val) return;
             btnInputSave.disabled = true;
@@ -600,7 +670,16 @@
             } catch (e) { alert('Error de conexión con Cloudflare D1.'); }
             btnInputSave.disabled = false;
             btnInputSave.textContent = 'Guardar';
-        };
+        }
+
+        async function deleteRamoGlobal(ramoId) {
+            if(!confirm("⚠️ ADMIN: ¿Borrar definitivamente este ramo y TODOS sus documentos?")) return;
+            try {
+                const res = await fetch(`${WORKER_URL}/ramos?id=${ramoId}&requester=${encodeURIComponent(auth.currentUser.email)}`, { method: 'DELETE' });
+                if(!res.ok) throw new Error("No tienes permisos o falló el servidor");
+                await openCarrera(currentCarrera);
+            } catch(e) { alert(e.message); }
+        }
 
         btnInputCancel.onclick = () => {
             inputOverlay.style.opacity = '0';
@@ -628,19 +707,17 @@
                     div.className = 'folder';
                     div.innerHTML = `📄 ${archivo.nombre}`;
                     
-                    // Acción normal (abrir PDF)
                     div.onclick = () => {
                         const win = window.open();
                         win.document.write(`<iframe src="${archivo.url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
                     };
 
-                    // Si es Admin, inyecta botón de basura en el div
                     if (isAdminUser) {
                         const delBtn = document.createElement('div');
                         delBtn.className = 'btn-delete-doc';
                         delBtn.innerHTML = '🗑️';
                         delBtn.onclick = (e) => {
-                            e.stopPropagation(); // Evita que se abra el PDF
+                            e.stopPropagation(); 
                             deleteArchivoGlobal(archivo.id);
                         };
                         div.appendChild(delBtn);
@@ -1012,7 +1089,6 @@
                         <div style="font-weight: 500;">👤 ${u.email}</div>
                         <div style="opacity: 0.6; font-size: 0.85em;">Último acceso: ${new Date(u.ultimoAcceso).toLocaleDateString()}</div>
                     `;
-                    // Al hacer click, ver aportes
                     div.onclick = () => loadUserContributions(u.email, div);
                     adminUsersList.appendChild(div);
                 });
@@ -1027,7 +1103,6 @@
         });
 
         async function loadUserContributions(targetEmail, parentDiv) {
-            // Cierra si ya está abierto
             const existingDetails = parentDiv.querySelector('.contrib-details');
             if(existingDetails) { existingDetails.remove(); return; }
 
@@ -1039,7 +1114,6 @@
             detailsDiv.style.borderTop = '1px solid rgba(255,255,255,0.1)';
             detailsDiv.innerHTML = '<p style="font-size:0.9em; opacity:0.7;">Cargando aportes...</p>';
             
-            // Convertimos el flex a wrap temporalmente para alojar el detalle debajo
             parentDiv.style.flexWrap = 'wrap';
             parentDiv.appendChild(detailsDiv);
 
@@ -1137,13 +1211,11 @@
 
         onAuthStateChanged(auth, async (user) => {
             if (user && user.emailVerified) {
-                // Registrar log silencioso
                 fetch(`${WORKER_URL}/track-user`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: user.email })
                 }).catch(()=>{});
 
-                // Verificar si es Admin
                 try {
                     const res = await fetch(`${WORKER_URL}/admin/check?email=${encodeURIComponent(user.email)}`);
                     const data = await res.json();
