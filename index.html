@@ -92,7 +92,7 @@
         .search-bar::placeholder { color: rgba(255,255,255,0.7); }
         .search-bar:focus { background: rgba(255,255,255,0.15); outline: none; border-color: rgba(255,255,255,0.4); }
 
-        /* CARPETAS ROJAS PREMIUM (MODIFICADO A 4 COLUMNAS) */
+        /* CARPETAS ROJAS PREMIUM */
         .folders-grid {
             display: grid; 
             grid-template-columns: repeat(4, 1fr);
@@ -151,7 +151,6 @@
         .btn-icon { background: transparent; border: none; cursor: pointer; color: white; opacity: 0.6; transition: 0.2s; font-size: 1.1em; padding: 2px 4px; }
         .btn-icon:hover { opacity: 1; transform: scale(1.1); }
         
-        /* BOTÓN ELIMINAR DOC Y RAMOS (ADMIN) */
         .btn-delete-doc {
             position: absolute; right: 10px; top: 10px;
             background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.3);
@@ -525,11 +524,10 @@
                     div.textContent = carrera.nombre;
                     div.onclick = () => openCarrera(carrera.nombre);
 
-                    // Si es Admin, inyecta botón de basura en el div de la carrera
                     if (isAdminUser) {
                         const delBtn = document.createElement('div');
                         delBtn.className = 'btn-delete-doc';
-                        delBtn.innerHTML = '🗑️️';
+                        delBtn.innerHTML = '🗑';
                         delBtn.onclick = (e) => {
                             e.stopPropagation();
                             deleteCarreraGlobal(carrera.nombre);
@@ -539,7 +537,6 @@
                     carrerasGrid.appendChild(div);
                 });
 
-                // Botón Agregar Carrera (Solo visible para Admin)
                 if (isAdminUser) {
                     const btnAdd = document.createElement('div');
                     btnAdd.className = 'folder';
@@ -552,7 +549,7 @@
                         inputTitle.textContent = 'Nueva Carrera';
                         inputValue.placeholder = 'Nombre de la carrera...';
                         inputValue.value = '';
-                        btnInputSave.onclick = saveCarreraGlobal; // Asignamos la función de guardar carrera
+                        btnInputSave.onclick = saveCarreraGlobal; 
                         inputOverlay.style.display = 'flex';
                         setTimeout(() => inputOverlay.style.opacity = '1', 50);
                         inputValue.focus();
@@ -612,7 +609,6 @@
                     div.textContent = ramo.nombre;
                     div.onclick = () => openRamo(ramo.id, ramo.nombre);
 
-                    // Si es Admin, inyecta botón de basura en el div del ramo
                     if (isAdminUser) {
                         const delBtn = document.createElement('div');
                         delBtn.className = 'btn-delete-doc';
@@ -637,7 +633,7 @@
                 inputTitle.textContent = 'Nuevo Ramo';
                 inputValue.placeholder = 'Nombre del ramo...';
                 inputValue.value = '';
-                btnInputSave.onclick = saveRamoGlobal; // Asignamos la función de guardar ramo
+                btnInputSave.onclick = saveRamoGlobal; 
                 inputOverlay.style.display = 'flex';
                 setTimeout(() => inputOverlay.style.opacity = '1', 50);
                 inputValue.focus();
@@ -823,7 +819,7 @@
                             <td style="color:#a8e6cf; font-weight:bold;">${nota.valor}</td>
                             <td style="min-width: 55px;">
                                 <button class="btn-icon" onclick="window.openEditNotaModal(${nota.id}, ${ramo.id}, '${nota.nombre.replace(/'/g, "\\'")}', ${nota.porcentaje}, ${nota.valor}, false)" title="Editar">✏️</button>
-                                <button class="btn-icon" onclick="window.deleteNota(${nota.id})" title="Eliminar">🗑️</button>
+                                <button class="btn-icon" onclick="window.deleteNota(${nota.id})" title="Eliminar">🗑️️</button>
                             </td>
                         </tr>`;
                     });
@@ -866,6 +862,23 @@
                     }
 
                     let avgDisplay = hasEvaluations ? notaFinal.toFixed(2) : '--';
+                    
+                    // NUEVO: Lógica de Nota Necesaria para pasar
+                    let notaNecesariaHtml = '';
+                    let roundedPorcentaje = Math.round(porcentajeTotal);
+                    
+                    if (!examenNota && roundedPorcentaje < 100) {
+                        let pesoRestante = 100 - porcentajeTotal;
+                        let notaNecesaria = (3.95 - sumaPonderada) / (pesoRestante / 100);
+                        
+                        if (notaNecesaria > 7.0) {
+                            notaNecesariaHtml = `<div style="font-size:0.85em; color:#f87171; margin-top:8px;">Necesitas un <b>${notaNecesaria.toFixed(2)}</b> (Reprobado matemático)</div>`;
+                        } else if (notaNecesaria <= 1.0) {
+                            notaNecesariaHtml = `<div style="font-size:0.85em; color:#4ade80; margin-top:8px;">¡Ya tienes el 3.95 asegurado! 🎉</div>`;
+                        } else {
+                            notaNecesariaHtml = `<div style="font-size:0.85em; color:#FFD700; margin-top:8px;">Necesitas un <b>${notaNecesaria.toFixed(2)}</b> en el ${pesoRestante.toFixed(0)}% restante</div>`;
+                        }
+                    }
 
                     const card = document.createElement('div');
                     card.className = 'ramo-card';
@@ -884,12 +897,14 @@
                         <div class="promedio-section">
                             <div style="font-size:1.1em;">Promedio: <span style="font-weight:bold; color: #a8e6cf;">${avgDisplay}</span></div>
                             ${statusHtml}
+                            ${notaNecesariaHtml}
                         </div>
                         <div class="card-actions"></div>
                     `;
 
                     const actionsDiv = card.querySelector('.card-actions');
                     
+                    // Botón + Evaluación siempre disponible
                     const btnNota = document.createElement('button');
                     btnNota.className = 'btn-small btn-add-nota';
                     btnNota.textContent = '+ Evaluación';
@@ -899,7 +914,8 @@
                     };
                     actionsDiv.appendChild(btnNota);
 
-                    if (!examenNota) {
+                    // Botón ⭐ Examen SOLO si NO hay examen Y se alcanzó el 100%
+                    if (!examenNota && roundedPorcentaje >= 100) {
                         const btnExam = document.createElement('button');
                         btnExam.className = 'btn-small btn-add-exam';
                         btnExam.textContent = '⭐ Examen';
