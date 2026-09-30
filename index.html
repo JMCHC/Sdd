@@ -127,6 +127,7 @@
             background: rgba(255,255,255,0.1); padding: 15px 30px; border-radius: 16px;
             border: 1px solid rgba(255,255,255,0.2); margin-bottom: 30px;
             font-size: 1.3em; font-weight: 500; backdrop-filter: blur(10px);
+            text-align: center;
         }
         
         /* MENÚ DE USUARIO (HAMBURGUESA) */
@@ -209,7 +210,7 @@
 
     <div id="overlay-mi-nota" class="auth-overlay" style="display: none; z-index: 1001;">
         <div class="auth-modal">
-            <h2>Agregar Evaluación</h2>
+            <h2 id="modal-nota-title">Agregar Evaluación</h2>
             <input type="text" id="input-nota-nombre" class="input-field" placeholder="Nombre (ej. I1)">
             <input type="number" id="input-nota-porcentaje" class="input-field" placeholder="Porcentaje (ej. 25) %" min="0" max="100">
             <input type="number" id="input-nota-valor" class="input-field" placeholder="Nota (ej. 6.5)" step="0.1" min="1" max="7">
@@ -286,7 +287,9 @@
             </div>
             
             <div style="display: flex; justify-content: center; width: 100%;">
-                <div class="promedio-box">Promedio Ponderado: <span id="promedio-valor">--</span></div>
+                <div class="promedio-box" id="promedio-box-container">
+                    <!-- Contenido insertado por JS -->
+                </div>
             </div>
 
             <div class="folders-grid" id="mis-notas-grid"></div>
@@ -349,7 +352,7 @@
         const titleCarrera = document.getElementById('title-carrera');
         const titleRamo = document.getElementById('title-ramo');
         const titleMiRamo = document.getElementById('title-mi-ramo');
-        const promedioValor = document.getElementById('promedio-valor');
+        const promedioBoxContainer = document.getElementById('promedio-box-container');
         
         const btnBackCarreras = document.getElementById('btn-back-carreras');
         const btnBackRamos = document.getElementById('btn-back-ramos');
@@ -367,6 +370,7 @@
         const btnCancelMiRamo = document.getElementById('btn-cancel-mi-ramo');
 
         const overlayMiNota = document.getElementById('overlay-mi-nota');
+        const modalNotaTitle = document.getElementById('modal-nota-title');
         const inputNotaNombre = document.getElementById('input-nota-nombre');
         const inputNotaPorcentaje = document.getElementById('input-nota-porcentaje');
         const inputNotaValor = document.getElementById('input-nota-valor');
@@ -383,6 +387,7 @@
         // Variables para Mis Notas
         let currentMiRamoId = null;
         let currentMiRamoNombre = null;
+        let isAddingExam = false; // Controla si guardamos una nota normal o el examen Método 1
 
         // --- LÓGICA DEL MENÚ DESPLEGABLE ---
         btnMenu.addEventListener('click', (e) => {
@@ -622,7 +627,6 @@
             misRamosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7;">Cargando tus ramos...</p>';
             
             try {
-                // Filtra usando el email para asegurar privacidad de los datos
                 const res = await fetch(`${WORKER_URL}/mis-ramos?email=${encodeURIComponent(auth.currentUser.email)}`);
                 const ramosData = await res.json();
                 misRamosGrid.innerHTML = '';
@@ -679,7 +683,7 @@
             setTimeout(() => overlayMiRamo.style.display = 'none', 500);
         };
 
-        // --- DETALLE DE NOTAS DE UN RAMO ---
+        // --- DETALLE DE NOTAS Y LÓGICA DE EXAMEN (MÉTODO 1 Y 2) ---
         async function openMiRamo(ramoId, ramoNombre) {
             currentMiRamoId = ramoId;
             currentMiRamoNombre = ramoNombre;
@@ -688,7 +692,7 @@
             viewDetalleNotas.style.display = 'block';
 
             misNotasGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7;">Cargando tus notas...</p>';
-            promedioValor.textContent = '--';
+            promedioBoxContainer.innerHTML = 'Calculando...';
             
             try {
                 const res = await fetch(`${WORKER_URL}/mis-notas?ramoId=${ramoId}&email=${encodeURIComponent(auth.currentUser.email)}`);
@@ -697,8 +701,21 @@
 
                 let sumaPonderada = 0;
                 let porcentajeTotal = 0;
+                
+                let examenNota = null;
+                let notasNormales = [];
 
+                // Separamos si hay un Examen del Método 1 (Escondido bajo la etiqueta [EXAMEN])
                 notasData.forEach((nota) => {
+                    if (nota.nombre.startsWith('[EXAMEN]')) {
+                        examenNota = nota;
+                    } else {
+                        notasNormales.push(nota);
+                    }
+                });
+
+                // Renderizamos y calculamos el promedio de las Notas Normales
+                notasNormales.forEach((nota) => {
                     const porc = parseFloat(nota.porcentaje) || 0;
                     const val = parseFloat(nota.valor) || 0;
                     
@@ -720,31 +737,93 @@
                     misNotasGrid.appendChild(div);
                 });
 
+                // Calculamos el Promedio Base (O Nota de Presentación)
+                let promedioBase = 0;
                 if (porcentajeTotal > 0) {
-                    // Si no llegan al 100%, se calcula el promedio acumulado sobre lo evaluado
-                    let promedioFinal = (sumaPonderada / (porcentajeTotal / 100)).toFixed(2);
-                    promedioValor.textContent = `${promedioFinal} (con ${porcentajeTotal}% evaluado)`;
+                    promedioBase = sumaPonderada / (porcentajeTotal / 100);
+                }
+
+                // Generamos la Vista del Cuadro Principal de Promedio
+                if (examenNota) {
+                    // LÓGICA MÉTODO 1 (Nota de Presentación comprimida + Examen extra)
+                    const pesoExamen = parseFloat(examenNota.porcentaje) || 0;
+                    const pesoRestante = 100 - pesoExamen;
+                    const valorExamen = parseFloat(examenNota.valor) || 0;
+                    
+                    const notaFinal = (promedioBase * (pesoRestante / 100)) + (valorExamen * (pesoExamen / 100));
+                    
+                    promedioBoxContainer.innerHTML = `
+                        <div style="font-size: 0.85em; opacity: 0.8; margin-bottom: 5px;">Nota de Presentación (Vale ${pesoRestante}%): ${promedioBase > 0 ? promedioBase.toFixed(2) : '--'}</div>
+                        <div style="color: #a8e6cf; font-weight: bold;">Promedio Final: ${notaFinal.toFixed(2)}</div>
+                    `;
+
+                    // Renderizar Tarjeta del Examen Destacada
+                    const divExam = document.createElement('div');
+                    divExam.className = 'nota-item';
+                    divExam.style.borderColor = '#FFD700';
+                    divExam.style.background = 'rgba(255, 215, 0, 0.05)';
+                    divExam.innerHTML = `
+                        <div class="nota-header" style="color: #FFD700;">
+                            <span>⭐ ${examenNota.nombre.replace('[EXAMEN] ', '')}</span>
+                            <span>${examenNota.porcentaje}%</span>
+                        </div>
+                        <div class="nota-details">
+                            <span style="opacity: 0.8;">Nota Obtenida:</span>
+                            <span style="font-weight: bold; color: #a8e6cf;">${examenNota.valor}</span>
+                        </div>
+                    `;
+                    misNotasGrid.appendChild(divExam);
                 } else {
-                    promedioValor.textContent = 'Sin evaluaciones';
+                    // LÓGICA MÉTODO 2 (Solo se ven las notas ingresadas, si suman 100 es directo)
+                    promedioBoxContainer.innerHTML = `
+                        <div>Promedio Actual: <span style="color: #a8e6cf;">${promedioBase > 0 ? promedioBase.toFixed(2) : '--'}</span></div>
+                        <div style="font-size: 0.7em; opacity: 0.7; font-weight: normal; margin-top: 5px;">(Basado en el ${porcentajeTotal}% evaluado)</div>
+                    `;
+                }
+
+                // Botón Agregar Evaluación Normal
+                const btnAddNota = document.createElement('div');
+                btnAddNota.className = 'folder';
+                btnAddNota.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                btnAddNota.style.border = '1px dashed rgba(255,255,255,0.4)';
+                btnAddNota.style.boxShadow = 'none';
+                btnAddNota.textContent = '+ Agregar Evaluación';
+                btnAddNota.onclick = () => {
+                    isAddingExam = false;
+                    modalNotaTitle.textContent = 'Agregar Evaluación';
+                    inputNotaNombre.value = '';
+                    inputNotaNombre.disabled = false;
+                    inputNotaPorcentaje.value = '';
+                    inputNotaValor.value = '';
+                    overlayMiNota.style.display = 'flex';
+                    setTimeout(() => overlayMiNota.style.opacity = '1', 50);
+                    inputNotaNombre.focus();
+                };
+                misNotasGrid.appendChild(btnAddNota);
+
+                // Botón Agregar Examen (Método 1) - Solo si no hay un examen registrado
+                if (!examenNota) {
+                    const btnAddExamen = document.createElement('div');
+                    btnAddExamen.className = 'folder';
+                    btnAddExamen.style.backgroundColor = 'rgba(255, 215, 0, 0.05)';
+                    btnAddExamen.style.border = '1px dashed #FFD700';
+                    btnAddExamen.style.boxShadow = 'none';
+                    btnAddExamen.style.color = '#FFD700';
+                    btnAddExamen.textContent = '⭐ Agregar Examen';
+                    btnAddExamen.onclick = () => {
+                        isAddingExam = true;
+                        modalNotaTitle.textContent = 'Agregar Examen Final';
+                        inputNotaNombre.value = 'Examen Final';
+                        inputNotaPorcentaje.value = '';
+                        inputNotaValor.value = '';
+                        overlayMiNota.style.display = 'flex';
+                        setTimeout(() => overlayMiNota.style.opacity = '1', 50);
+                        inputNotaPorcentaje.focus();
+                    };
+                    misNotasGrid.appendChild(btnAddExamen);
                 }
 
             } catch(e) { misNotasGrid.innerHTML = '<p style="text-align:center; width:100%;">No se pudo cargar la información.</p>'; }
-
-            const btnAddNota = document.createElement('div');
-            btnAddNota.className = 'folder';
-            btnAddNota.style.backgroundColor = 'rgba(255,255,255,0.05)';
-            btnAddNota.style.border = '1px dashed rgba(255,255,255,0.4)';
-            btnAddNota.style.boxShadow = 'none';
-            btnAddNota.textContent = '+ Agregar Evaluación';
-            btnAddNota.onclick = () => {
-                inputNotaNombre.value = '';
-                inputNotaPorcentaje.value = '';
-                inputNotaValor.value = '';
-                overlayMiNota.style.display = 'flex';
-                setTimeout(() => overlayMiNota.style.opacity = '1', 50);
-                inputNotaNombre.focus();
-            };
-            misNotasGrid.appendChild(btnAddNota);
         }
 
         btnBackMisNotas.onclick = () => {
@@ -754,13 +833,18 @@
         };
 
         btnSaveMiNota.onclick = async () => {
-            const nombre = inputNotaNombre.value.trim();
+            let nombre = inputNotaNombre.value.trim();
             const porcentaje = inputNotaPorcentaje.value.trim();
             const valor = inputNotaValor.value.trim();
             
             if (!nombre || !porcentaje || !valor) {
-                alert("Por favor completa todos los campos de la evaluación.");
+                alert("Por favor completa todos los campos.");
                 return;
+            }
+
+            // Si es un examen especial Método 1, le agregamos la etiqueta oculta
+            if (isAddingExam) {
+                nombre = '[EXAMEN] ' + nombre;
             }
 
             btnSaveMiNota.disabled = true;
