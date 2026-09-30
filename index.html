@@ -75,6 +75,12 @@
         .btn-primary { background: var(--folder-red); color: white; box-shadow: inset 0 2px 4px rgba(255,255,255,0.2), 0 4px 10px rgba(0,0,0,0.2); }
         .btn-secondary { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
         .btn-primary:hover, .btn-secondary:hover { transform: translateY(-2px); }
+        
+        .btn-forgot {
+            text-align: center; margin-top: 15px; font-size: 0.85em; 
+            cursor: pointer; text-decoration: underline; opacity: 0.7; transition: 0.2s;
+        }
+        .btn-forgot:hover { opacity: 1; }
 
         /* INTERFAZ PRINCIPAL */
         .dashboard {
@@ -261,10 +267,13 @@
                 <button id="btn-login" class="btn-primary">Ingresar</button>
                 <button id="btn-register" class="btn-secondary">Registrarse</button>
             </div>
+            
+            <!-- NUEVO BOTÓN DE RECUPERAR CONTRASEÑA -->
+            <p id="btn-forgot-password" class="btn-forgot">¿Olvidaste tu contraseña?</p>
         </div>
     </div>
 
-    <!-- OVERLAYS PARA REPOSITORIO ORIGINAL -->
+    <!-- OVERLAYS PARA REPOSITORIO ORIGINAL (CARRERAS Y RAMOS) -->
     <div id="input-overlay" class="auth-overlay" style="display: none; z-index: 1001;">
         <div class="auth-modal">
             <h2 id="input-title">Nuevo</h2>
@@ -392,8 +401,9 @@
 
     <!-- LÓGICA DE FIREBASE AUTH Y CLOUDFLARE D1 -->
     <script type="module">
+        // Se agregó sendPasswordResetEmail en la importación
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification, setPersistence, browserSessionPersistence, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         // URL del backend seguro en Cloudflare
         const WORKER_URL = "https://sdd-backend.christensenjosemanuel.workers.dev";
@@ -416,6 +426,7 @@
         const emailInput = document.getElementById('auth-email');
         const passwordInput = document.getElementById('auth-password');
         const errorMsg = document.getElementById('auth-error');
+        const btnForgotPassword = document.getElementById('btn-forgot-password');
         
         // Menú Desplegable y Admin
         const userMenuContainer = document.getElementById('user-menu-container');
@@ -997,6 +1008,7 @@
                     };
                     actionsDiv.appendChild(btnNota);
 
+                    // Botón de Examen se oculta si ya existe un examen o si las notas NO suman exactamente el 100%
                     if (!examenNota && roundedPorcentaje >= 100) {
                         const btnExam = document.createElement('button');
                         btnExam.className = 'btn-small btn-add-exam';
@@ -1281,6 +1293,7 @@
                 return;
             }
             
+            // Forzar el uso de Sesión (se borra al cerrar pestaña/navegador)
             setPersistence(auth, browserSessionPersistence).then(() => {
                 return createUserWithEmailAndPassword(auth, email, password);
             }).then((cred) => {
@@ -1310,6 +1323,25 @@
             isAdminUser = false;
             btnAdminPanelUI.style.display = 'none';
             signOut(auth);
+        });
+
+        document.getElementById('btn-forgot-password').addEventListener('click', () => {
+            const email = emailInput.value.trim();
+            if (!email) {
+                showMsg('Ingresa tu correo institucional arriba y presiona "Recuperar contraseña".');
+                return;
+            }
+            if (!email.endsWith('@uc.cl') && !email.endsWith('@estudiante.uc.cl')) {
+                showMsg('Solo correos @uc.cl o @estudiante.uc.cl permitidos.');
+                return;
+            }
+            sendPasswordResetEmail(auth, email)
+                .then(() => {
+                    showMsg('Correo de recuperación enviado. Revisa tu bandeja de entrada o spam.', '#a8e6cf');
+                })
+                .catch((error) => {
+                    showMsg('Error: No se pudo enviar el correo. ' + error.message);
+                });
         });
 
         onAuthStateChanged(auth, async (user) => {
