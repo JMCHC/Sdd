@@ -4,8 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solidaridad Apoya</title>
+    
     <!-- Favicon para la pestaña del navegador -->
     <link rel="icon" type="image/png" href="https://lh3.googleusercontent.com/pw/AP1GczM-QDLV4_StoQYFE9fpmfm2AjaXbodPfWn5iZcmR0C3W_yrnM1P69rQ-UL97rllE-OVF4Zz7ZrhxT6AhbLpVzR1-MURUIj9RTF7UXoXZwv2oNBoV8ULKilizJBb27YYpWLeDTZTQk0sP44b1wyfxFz3KQ=w599-h599-s-no-gm?authuser=0">
+    
+    <!-- Configuración para Pantalla de Inicio en Celulares (iOS y Android) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SddApoya">
+    <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/pw/AP1GczM-QDLV4_StoQYFE9fpmfm2AjaXbodPfWn5iZcmR0C3W_yrnM1P69rQ-UL97rllE-OVF4Zz7ZrhxT6AhbLpVzR1-MURUIj9RTF7UXoXZwv2oNBoV8ULKilizJBb27YYpWLeDTZTQk0sP44b1wyfxFz3KQ=w599-h599-s-no-gm?authuser=0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#64849A">
+
     <style>
         /* VARIABLES Y RESET */
         :root {
@@ -254,7 +264,7 @@
         </div>
     </div>
 
-    <!-- OVERLAYS PARA REPOSITORIO ORIGINAL (CARRERAS Y RAMOS) -->
+    <!-- OVERLAYS PARA REPOSITORIO ORIGINAL -->
     <div id="input-overlay" class="auth-overlay" style="display: none; z-index: 1001;">
         <div class="auth-modal">
             <h2 id="input-title">Nuevo</h2>
@@ -382,7 +392,6 @@
 
     <!-- LÓGICA DE FIREBASE AUTH Y CLOUDFLARE D1 -->
     <script type="module">
-        // NUEVO: Agregamos setPersistence y browserSessionPersistence
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -533,7 +542,6 @@
                 return;
             }
 
-            // Oculta las carpetas locales temporalmente
             let activeGrid = viewCarreras.style.display !== 'none' ? carrerasGrid : 
                             (viewRamos.style.display !== 'none' ? ramosGrid : archivosGrid);
             activeGrid.querySelectorAll('.folder').forEach(item => {
@@ -541,7 +549,6 @@
                 item.style.display = name.includes(query.toLowerCase()) ? 'flex' : 'none';
             });
 
-            // Llamada al Backend para buscar en toda la BD
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(async () => {
                 if (query.length < 2) return;
@@ -990,7 +997,6 @@
                     };
                     actionsDiv.appendChild(btnNota);
 
-                    // Botón de Examen se oculta si ya existe un examen o si las notas NO suman exactamente el 100%
                     if (!examenNota && roundedPorcentaje >= 100) {
                         const btnExam = document.createElement('button');
                         btnExam.className = 'btn-small btn-add-exam';
