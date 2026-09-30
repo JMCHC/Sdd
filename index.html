@@ -92,11 +92,16 @@
         .search-bar::placeholder { color: rgba(255,255,255,0.7); }
         .search-bar:focus { background: rgba(255,255,255,0.15); outline: none; border-color: rgba(255,255,255,0.4); }
 
-        /* CARPETAS ROJAS PREMIUM */
+        /* CARPETAS ROJAS PREMIUM (MODIFICADO A 4 COLUMNAS) */
         .folders-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr);
             gap: 25px; width: 100%;
         }
+        @media (max-width: 950px) { .folders-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 750px) { .folders-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 500px) { .folders-grid { grid-template-columns: 1fr; } }
+        
         .folder {
             background-color: var(--folder-red);
             border-radius: 16px; padding: 30px 20px;
@@ -649,7 +654,6 @@
                         sumaPonderada += (val * (porc / 100));
                         porcentajeTotal += porc;
                         
-                        // Genera filas de notas normales con botones de editar y eliminar
                         tableRows += `
                         <tr>
                             <td>${nota.nombre}</td>
@@ -675,7 +679,6 @@
                         const valorExamen = parseFloat(examenNota.valor) || 0;
                         notaFinal = (promedioBase * (pesoRestante / 100)) + (valorExamen * (pesoExamen / 100));
 
-                        // Genera fila del Examen con botones de editar y eliminar
                         tableRows += `
                         <tr style="background: rgba(255,215,0,0.1);">
                             <td style="color:#FFD700;">⭐ ${examenNota.nombre.replace('[EXAMEN] ', '')}</td>
@@ -723,14 +726,13 @@
                         <div class="card-actions"></div>
                     `;
 
-                    // Lógica de botones de Agregar dentro de la tarjeta
                     const actionsDiv = card.querySelector('.card-actions');
                     
                     const btnNota = document.createElement('button');
                     btnNota.className = 'btn-small btn-add-nota';
                     btnNota.textContent = '+ Evaluación';
                     btnNota.onclick = () => {
-                        currentEditNotaId = null; // Es una nota nueva
+                        currentEditNotaId = null; 
                         openAddNotaModal(ramo.id, false);
                     };
                     actionsDiv.appendChild(btnNota);
@@ -740,7 +742,7 @@
                         btnExam.className = 'btn-small btn-add-exam';
                         btnExam.textContent = '⭐ Examen';
                         btnExam.onclick = () => {
-                            currentEditNotaId = null; // Es una nota nueva
+                            currentEditNotaId = null; 
                             openAddNotaModal(ramo.id, true);
                         };
                         actionsDiv.appendChild(btnExam);
@@ -749,7 +751,6 @@
                     misRamosGrid.appendChild(card);
                 });
 
-                // Tarjeta final para Agregar Ramo
                 const addCard = document.createElement('div');
                 addCard.className = 'ramo-card';
                 addCard.style.justifyContent = 'center';
@@ -796,8 +797,6 @@
             setTimeout(() => overlayMiRamo.style.display = 'none', 500);
         };
 
-        // --- FUNCIONES PARA EDITAR Y ELIMINAR ASIGNADAS A WINDOW ---
-        // Necesarias porque estamos trabajando dentro de un módulo (type="module")
         window.openEditNotaModal = (notaId, ramoId, nombre, porcentaje, valor, isExam) => {
             currentEditNotaId = notaId;
             currentMiRamoId = ramoId;
@@ -817,16 +816,16 @@
             if(!confirm("¿Estás seguro de que deseas eliminar esta evaluación?")) return;
             
             try {
-                await fetch(`${WORKER_URL}/mis-notas?id=${notaId}&email=${encodeURIComponent(auth.currentUser.email)}`, {
+                const res = await fetch(`${WORKER_URL}/mis-notas?id=${notaId}&email=${encodeURIComponent(auth.currentUser.email)}`, {
                     method: 'DELETE'
                 });
-                await loadMisRamos(); // Refrescar automáticamente
+                if(!res.ok) throw new Error('El servidor rechazó la eliminación.');
+                await loadMisRamos(); 
             } catch(e) {
-                alert('Error de conexión al intentar eliminar.');
+                alert('Error al intentar eliminar. Asegúrate de haber actualizado el Worker en Cloudflare. (' + e.message + ')');
             }
         };
 
-        // Función Helper para abrir el Modal desde el botón de Agregar
         function openAddNotaModal(ramoId, isExam) {
             currentMiRamoId = ramoId;
             isAddingExam = isExam;
@@ -848,7 +847,6 @@
             if(isExam) { inputNotaPorcentaje.focus(); } else { inputNotaNombre.focus(); }
         }
 
-        // Modificamos el guardado de nota para que sepa si es NUEVA (POST) o EDICIÓN (PUT)
         btnSaveMiNota.onclick = async () => {
             let nombre = inputNotaNombre.value.trim();
             const porcentaje = inputNotaPorcentaje.value.trim();
@@ -876,18 +874,25 @@
                 valor: parseFloat(valor)
             };
 
-            // Si estamos editando, mandamos el ID para saber cuál reemplazar
             if (currentEditNotaId) { payload.id = currentEditNotaId; }
 
             try {
-                await fetch(`${WORKER_URL}/mis-notas`, {
+                const response = await fetch(`${WORKER_URL}/mis-notas`, {
                     method: metodoHTTP,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || 'Asegúrate de haber guardado el código actualizado en el Worker de Cloudflare.');
+                }
+                
                 btnCancelMiNota.click();
                 await loadMisRamos(); 
-            } catch (e) { alert('Error al guardar la nota en tu base de datos.'); }
+            } catch (e) { 
+                alert('Fallo la conexión: ' + e.message); 
+            }
             
             btnSaveMiNota.disabled = false;
             btnSaveMiNota.textContent = 'Guardar';
