@@ -109,7 +109,7 @@
         .folder:hover { transform: translateY(-8px); }
         .header-title { margin-bottom: 20px; font-weight: 300; letter-spacing: 1px; width: 100%; }
 
-        /* NUEVO: GRID PARA RAMOS PERSONALES Y TARJETAS (FILAS DE 3) */
+        /* GRID PARA RAMOS PERSONALES Y TARJETAS */
         .notas-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -125,7 +125,7 @@
             display: flex; flex-direction: column;
             backdrop-filter: blur(10px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-            min-height: 320px; /* Para que todas mantengan buena proporción */
+            min-height: 320px;
         }
         .ramo-card h3 { 
             text-align: center; margin-bottom: 15px; font-weight: 600; font-size: 1.3em;
@@ -133,7 +133,6 @@
         }
         
         .notas-table-container { flex-grow: 1; overflow-y: auto; max-height: 250px; margin-bottom: 15px; padding-right: 5px; }
-        /* Scrollbar styling for table container */
         .notas-table-container::-webkit-scrollbar { width: 6px; }
         .notas-table-container::-webkit-scrollbar-track { background: transparent; }
         .notas-table-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
@@ -141,8 +140,12 @@
         .notas-table { width: 100%; border-collapse: collapse; }
         .notas-table th, .notas-table td { padding: 8px 4px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .notas-table th:first-child, .notas-table td:first-child { text-align: left; }
-        .notas-table th { font-weight: 600; opacity: 0.8; font-size: 0.9em; position: sticky; top: 0; background: #6b8a9f; }
+        .notas-table th { font-weight: 600; opacity: 0.8; font-size: 0.9em; position: sticky; top: 0; background: #6b8a9f; z-index: 10; }
         
+        /* BOTONES DE EDICIÓN Y ELIMINACIÓN DE NOTAS */
+        .btn-icon { background: transparent; border: none; cursor: pointer; color: white; opacity: 0.6; transition: 0.2s; font-size: 1.1em; padding: 2px 4px; }
+        .btn-icon:hover { opacity: 1; transform: scale(1.1); }
+
         .promedio-section { margin-top: auto; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); text-align: center; }
         .status-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 0.9em; margin-top: 8px; }
         .status-aprobado { background: rgba(46, 204, 113, 0.2); color: #4ade80; border: 1px solid rgba(46, 204, 113, 0.4); }
@@ -251,7 +254,6 @@
     <input type="file" id="file-upload" accept="application/pdf" style="display: none;">
 
     <!-- INTERFAZ PRINCIPAL -->
-    <!-- MENÚ DE USUARIO DESPLEGABLE -->
     <div id="user-menu-container" class="user-menu-container" style="display: none;">
         <button id="btn-menu" class="hamburger-btn">
             <span></span>
@@ -297,14 +299,13 @@
             <div class="folders-grid" id="archivos-grid"></div>
         </div>
 
-        <!-- SECCIÓN MIS NOTAS (VISTA CONSOLIDADA EN TARJETAS) -->
+        <!-- SECCIÓN MIS NOTAS (TARJETAS) -->
         <div id="view-mis-notas" style="width: 100%; display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; width: 100%;">
                 <h2 class="header-title" style="margin-bottom: 0; font-weight: 500;">Ramos Personales</h2>
             </div>
             <div id="mis-ramos-grid"></div>
         </div>
-
     </div>
 
     <!-- LÓGICA DE FIREBASE AUTH Y CLOUDFLARE D1 -->
@@ -392,6 +393,7 @@
         // Variables para Mis Notas
         let currentMiRamoId = null;
         let isAddingExam = false; 
+        let currentEditNotaId = null; // Controla si estamos editando o creando una nota nueva
 
         // --- LÓGICA DEL MENÚ DESPLEGABLE ---
         btnMenu.addEventListener('click', (e) => {
@@ -615,11 +617,9 @@
             misRamosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7; grid-column: 1 / -1;">Cargando tus ramos y notas...</p>';
             
             try {
-                // 1. Obtener los ramos
                 const resRamos = await fetch(`${WORKER_URL}/mis-ramos?email=${encodeURIComponent(auth.currentUser.email)}`);
                 const ramosData = await resRamos.json();
                 
-                // 2. Obtener todas las notas de cada ramo simultáneamente
                 const notesPromises = ramosData.map(ramo => 
                     fetch(`${WORKER_URL}/mis-notas?ramoId=${ramo.id}&email=${encodeURIComponent(auth.currentUser.email)}`).then(r => r.json())
                 );
@@ -627,7 +627,6 @@
 
                 misRamosGrid.innerHTML = '';
 
-                // 3. Renderizar cada tarjeta de ramo
                 ramosData.forEach((ramo, index) => {
                     const notasData = allNotesData[index];
                     let sumaPonderada = 0;
@@ -649,7 +648,18 @@
                         const val = parseFloat(nota.valor) || 0;
                         sumaPonderada += (val * (porc / 100));
                         porcentajeTotal += porc;
-                        tableRows += `<tr><td>${nota.nombre}</td><td>${nota.porcentaje}%</td><td style="color:#a8e6cf; font-weight:bold;">${nota.valor}</td></tr>`;
+                        
+                        // Genera filas de notas normales con botones de editar y eliminar
+                        tableRows += `
+                        <tr>
+                            <td>${nota.nombre}</td>
+                            <td>${nota.porcentaje}%</td>
+                            <td style="color:#a8e6cf; font-weight:bold;">${nota.valor}</td>
+                            <td style="min-width: 55px;">
+                                <button class="btn-icon" onclick="window.openEditNotaModal(${nota.id}, ${ramo.id}, '${nota.nombre.replace(/'/g, "\\'")}', ${nota.porcentaje}, ${nota.valor}, false)" title="Editar">✏️</button>
+                                <button class="btn-icon" onclick="window.deleteNota(${nota.id})" title="Eliminar">🗑️</button>
+                            </td>
+                        </tr>`;
                     });
 
                     let promedioBase = 0;
@@ -665,7 +675,17 @@
                         const valorExamen = parseFloat(examenNota.valor) || 0;
                         notaFinal = (promedioBase * (pesoRestante / 100)) + (valorExamen * (pesoExamen / 100));
 
-                        tableRows += `<tr style="background: rgba(255,215,0,0.1);"><td style="color:#FFD700;">⭐ ${examenNota.nombre.replace('[EXAMEN] ', '')}</td><td style="color:#FFD700;">${examenNota.porcentaje}%</td><td style="color:#FFD700; font-weight:bold;">${examenNota.valor}</td></tr>`;
+                        // Genera fila del Examen con botones de editar y eliminar
+                        tableRows += `
+                        <tr style="background: rgba(255,215,0,0.1);">
+                            <td style="color:#FFD700;">⭐ ${examenNota.nombre.replace('[EXAMEN] ', '')}</td>
+                            <td style="color:#FFD700;">${examenNota.porcentaje}%</td>
+                            <td style="color:#FFD700; font-weight:bold;">${examenNota.valor}</td>
+                            <td style="min-width: 55px;">
+                                <button class="btn-icon" onclick="window.openEditNotaModal(${examenNota.id}, ${ramo.id}, '${examenNota.nombre.replace(/'/g, "\\'")}', ${examenNota.porcentaje}, ${examenNota.valor}, true)" title="Editar">✏️</button>
+                                <button class="btn-icon" onclick="window.deleteNota(${examenNota.id})" title="Eliminar">🗑️</button>
+                            </td>
+                        </tr>`;
                     }
 
                     let isAprobado = notaFinal >= 3.95;
@@ -689,10 +709,10 @@
                         <div class="notas-table-container">
                             <table class="notas-table">
                                 <thead>
-                                    <tr><th>Evaluación</th><th>%</th><th>Nota</th></tr>
+                                    <tr><th>Evaluación</th><th>%</th><th>Nota</th><th></th></tr>
                                 </thead>
                                 <tbody>
-                                    ${tableRows || '<tr><td colspan="3" style="text-align:center; opacity:0.5; padding: 20px 0;">Aún no hay notas</td></tr>'}
+                                    ${tableRows || '<tr><td colspan="4" style="text-align:center; opacity:0.5; padding: 20px 0;">Aún no hay notas</td></tr>'}
                                 </tbody>
                             </table>
                         </div>
@@ -703,20 +723,26 @@
                         <div class="card-actions"></div>
                     `;
 
-                    // Lógica de botones dentro de la tarjeta
+                    // Lógica de botones de Agregar dentro de la tarjeta
                     const actionsDiv = card.querySelector('.card-actions');
                     
                     const btnNota = document.createElement('button');
                     btnNota.className = 'btn-small btn-add-nota';
                     btnNota.textContent = '+ Evaluación';
-                    btnNota.onclick = () => openAddNotaModal(ramo.id, false);
+                    btnNota.onclick = () => {
+                        currentEditNotaId = null; // Es una nota nueva
+                        openAddNotaModal(ramo.id, false);
+                    };
                     actionsDiv.appendChild(btnNota);
 
                     if (!examenNota) {
                         const btnExam = document.createElement('button');
                         btnExam.className = 'btn-small btn-add-exam';
                         btnExam.textContent = '⭐ Examen';
-                        btnExam.onclick = () => openAddNotaModal(ramo.id, true);
+                        btnExam.onclick = () => {
+                            currentEditNotaId = null; // Es una nota nueva
+                            openAddNotaModal(ramo.id, true);
+                        };
                         actionsDiv.appendChild(btnExam);
                     }
 
@@ -745,7 +771,6 @@
             }
         }
 
-        // Crear Ramo Personal
         btnSaveMiRamo.onclick = async () => {
             const val = inputMiRamo.value.trim();
             if (!val) return;
@@ -759,7 +784,7 @@
                     body: JSON.stringify({ nombre: val, email: auth.currentUser.email })
                 });
                 btnCancelMiRamo.click();
-                await loadMisRamos(); // Refresca las tarjetas
+                await loadMisRamos(); 
             } catch (e) { alert('Error al guardar en tu base de datos.'); }
             
             btnSaveMiRamo.disabled = false;
@@ -771,7 +796,37 @@
             setTimeout(() => overlayMiRamo.style.display = 'none', 500);
         };
 
-        // Función Helper para abrir el Modal desde las tarjetas
+        // --- FUNCIONES PARA EDITAR Y ELIMINAR ASIGNADAS A WINDOW ---
+        // Necesarias porque estamos trabajando dentro de un módulo (type="module")
+        window.openEditNotaModal = (notaId, ramoId, nombre, porcentaje, valor, isExam) => {
+            currentEditNotaId = notaId;
+            currentMiRamoId = ramoId;
+            isAddingExam = isExam;
+            
+            modalNotaTitle.textContent = isExam ? 'Editar Examen' : 'Editar Evaluación';
+            inputNotaNombre.value = isExam ? nombre.replace('[EXAMEN] ', '') : nombre;
+            inputNotaPorcentaje.value = porcentaje;
+            inputNotaValor.value = valor;
+            
+            overlayMiNota.style.display = 'flex';
+            setTimeout(() => overlayMiNota.style.opacity = '1', 50);
+            inputNotaPorcentaje.focus();
+        };
+
+        window.deleteNota = async (notaId) => {
+            if(!confirm("¿Estás seguro de que deseas eliminar esta evaluación?")) return;
+            
+            try {
+                await fetch(`${WORKER_URL}/mis-notas?id=${notaId}&email=${encodeURIComponent(auth.currentUser.email)}`, {
+                    method: 'DELETE'
+                });
+                await loadMisRamos(); // Refrescar automáticamente
+            } catch(e) {
+                alert('Error de conexión al intentar eliminar.');
+            }
+        };
+
+        // Función Helper para abrir el Modal desde el botón de Agregar
         function openAddNotaModal(ramoId, isExam) {
             currentMiRamoId = ramoId;
             isAddingExam = isExam;
@@ -779,11 +834,9 @@
             if(isExam) {
                 modalNotaTitle.textContent = 'Agregar Examen Final';
                 inputNotaNombre.value = 'Examen Final';
-                // inputNotaNombre.disabled = true; // Opcional, para bloquear el nombre
             } else {
                 modalNotaTitle.textContent = 'Agregar Evaluación';
                 inputNotaNombre.value = '';
-                // inputNotaNombre.disabled = false;
             }
             
             inputNotaPorcentaje.value = '';
@@ -795,7 +848,7 @@
             if(isExam) { inputNotaPorcentaje.focus(); } else { inputNotaNombre.focus(); }
         }
 
-        // Guardar Nota Personal
+        // Modificamos el guardado de nota para que sepa si es NUEVA (POST) o EDICIÓN (PUT)
         btnSaveMiNota.onclick = async () => {
             let nombre = inputNotaNombre.value.trim();
             const porcentaje = inputNotaPorcentaje.value.trim();
@@ -813,20 +866,27 @@
             btnSaveMiNota.disabled = true;
             btnSaveMiNota.textContent = 'Guardando...';
 
+            const metodoHTTP = currentEditNotaId ? 'PUT' : 'POST';
+            
+            const payload = {
+                ramoId: currentMiRamoId,
+                email: auth.currentUser.email,
+                nombre: nombre,
+                porcentaje: parseFloat(porcentaje),
+                valor: parseFloat(valor)
+            };
+
+            // Si estamos editando, mandamos el ID para saber cuál reemplazar
+            if (currentEditNotaId) { payload.id = currentEditNotaId; }
+
             try {
                 await fetch(`${WORKER_URL}/mis-notas`, {
-                    method: 'POST',
+                    method: metodoHTTP,
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ramoId: currentMiRamoId,
-                        email: auth.currentUser.email,
-                        nombre: nombre,
-                        porcentaje: parseFloat(porcentaje),
-                        valor: parseFloat(valor)
-                    })
+                    body: JSON.stringify(payload)
                 });
                 btnCancelMiNota.click();
-                await loadMisRamos(); // Refresca las tarjetas de notas automáticamente
+                await loadMisRamos(); 
             } catch (e) { alert('Error al guardar la nota en tu base de datos.'); }
             
             btnSaveMiNota.disabled = false;
