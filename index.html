@@ -110,6 +110,7 @@
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 1px solid rgba(255,255,255,0.1);
             word-wrap: break-word; 
+            display: flex; justify-content: center; align-items: center; position: relative;
         }
         .folder:hover { transform: translateY(-8px); }
         .header-title { margin-bottom: 20px; font-weight: 300; letter-spacing: 1px; width: 100%; }
@@ -147,9 +148,18 @@
         .notas-table th:first-child, .notas-table td:first-child { text-align: left; }
         .notas-table th { font-weight: 600; opacity: 0.8; font-size: 0.9em; position: sticky; top: 0; background: #6b8a9f; z-index: 10; }
         
-        /* BOTONES DE EDICIÓN Y ELIMINACIÓN DE NOTAS */
         .btn-icon { background: transparent; border: none; cursor: pointer; color: white; opacity: 0.6; transition: 0.2s; font-size: 1.1em; padding: 2px 4px; }
         .btn-icon:hover { opacity: 1; transform: scale(1.1); }
+        
+        /* BOTÓN ELIMINAR DOC (ADMIN) */
+        .btn-delete-doc {
+            position: absolute; right: 10px; top: 10px;
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 50%; width: 30px; height: 30px;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: 0.2s; z-index: 20;
+        }
+        .btn-delete-doc:hover { background: rgba(231, 76, 60, 0.8); transform: scale(1.1); }
 
         .promedio-section { margin-top: auto; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); text-align: center; }
         .status-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 0.9em; margin-top: 8px; }
@@ -163,6 +173,15 @@
         .btn-add-nota:hover { background: rgba(255,255,255,0.2); }
         .btn-add-exam { background: rgba(255, 215, 0, 0.1); color: #FFD700; border: 1px dashed #FFD700; }
         .btn-add-exam:hover { background: rgba(255, 215, 0, 0.2); }
+
+        /* LISTA PANEL ADMIN */
+        .admin-list-item {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            padding: 15px; border-radius: 12px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+            transition: 0.2s; backdrop-filter: blur(10px);
+        }
+        .admin-list-item:hover { background: rgba(255,255,255,0.2); }
 
         /* MENÚ DE USUARIO (HAMBURGUESA) */
         .user-menu-container {
@@ -185,7 +204,7 @@
             border: 1px solid rgba(255,255,255,0.2); border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             display: none; flex-direction: column; overflow: hidden;
-            min-width: 160px;
+            min-width: 180px;
         }
         .dropdown-menu.show { display: flex; }
         .dropdown-item {
@@ -268,6 +287,7 @@
         <div id="dropdown-menu" class="dropdown-menu">
             <button id="btn-inicio" class="dropdown-item">Inicio</button>
             <button id="btn-mis-notas" class="dropdown-item">Mis notas</button>
+            <button id="btn-admin-panel" class="dropdown-item" style="display:none; color:#FFD700;">⚙️ Panel Administrador</button>
             <button id="btn-logout" class="dropdown-item">Cerrar sesión</button>
         </div>
     </div>
@@ -311,6 +331,34 @@
             </div>
             <div id="mis-ramos-grid"></div>
         </div>
+
+        <!-- SECCIÓN PANEL DE ADMINISTRADOR -->
+        <div id="view-admin" style="width: 100%; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; width: 100%;">
+                <h2 class="header-title" style="margin-bottom: 0; font-weight: 500; color:#FFD700;">⚙️ Panel de Administración</h2>
+            </div>
+            
+            <div style="display: flex; gap: 15px; margin-bottom: 30px; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto;">
+                <button id="btn-tab-usuarios" class="btn-primary" style="background:#FFD700; color:#000;">Usuarios Registrados</button>
+                <button id="btn-tab-equipo" class="btn-secondary">Mi Equipo</button>
+            </div>
+
+            <!-- Contenedor de Usuarios -->
+            <div id="admin-usuarios-container" style="width:100%; max-width: 600px; margin: auto;">
+                <input type="text" id="admin-search-users" class="search-bar" placeholder="Buscar usuario..." style="margin-bottom: 20px;">
+                <div id="admin-users-list"></div>
+            </div>
+
+            <!-- Contenedor de Equipo -->
+            <div id="admin-equipo-container" style="width:100%; max-width: 600px; margin: auto; display: none;">
+                <div style="display:flex; gap:10px; margin-bottom:20px;">
+                    <input type="email" id="admin-new-team-email" class="input-field" placeholder="Correo institucional del nuevo admin..." style="margin-bottom:0;">
+                    <button id="btn-add-team" class="btn-primary" style="flex:0 0 auto; width:100px;">Invitar</button>
+                </div>
+                <div id="admin-team-list"></div>
+            </div>
+        </div>
+
     </div>
 
     <!-- LÓGICA DE FIREBASE AUTH Y CLOUDFLARE D1 -->
@@ -340,12 +388,13 @@
         const passwordInput = document.getElementById('auth-password');
         const errorMsg = document.getElementById('auth-error');
         
-        // Menú Desplegable
+        // Menú Desplegable y Admin
         const userMenuContainer = document.getElementById('user-menu-container');
         const btnMenu = document.getElementById('btn-menu');
         const dropdownMenu = document.getElementById('dropdown-menu');
         const btnInicio = document.getElementById('btn-inicio');
         const btnMisNotasUI = document.getElementById('btn-mis-notas');
+        const btnAdminPanelUI = document.getElementById('btn-admin-panel');
         const btnLogoutUI = document.getElementById('btn-logout');
         
         const searchContainer = document.getElementById('search-container');
@@ -356,6 +405,7 @@
         const viewRamos = document.getElementById('view-ramos');
         const viewArchivos = document.getElementById('view-archivos');
         const viewMisNotas = document.getElementById('view-mis-notas');
+        const viewAdmin = document.getElementById('view-admin');
         
         // Grids
         const carrerasGrid = document.getElementById('carreras-grid');
@@ -369,12 +419,7 @@
         const btnBackCarreras = document.getElementById('btn-back-carreras');
         const btnBackRamos = document.getElementById('btn-back-ramos');
 
-        // Overlays
-        const inputOverlay = document.getElementById('input-overlay');
-        const inputValue = document.getElementById('input-value');
-        const btnInputSave = document.getElementById('btn-input-save');
-        const btnInputCancel = document.getElementById('btn-input-cancel');
-        
+        // Overlays Mis Notas
         const overlayMiRamo = document.getElementById('overlay-mi-ramo');
         const inputMiRamo = document.getElementById('input-mi-ramo');
         const btnSaveMiRamo = document.getElementById('btn-save-mi-ramo');
@@ -388,17 +433,24 @@
         const btnSaveMiNota = document.getElementById('btn-save-mi-nota');
         const btnCancelMiNota = document.getElementById('btn-cancel-mi-nota');
 
+        // Inputs Originales
+        const inputOverlay = document.getElementById('input-overlay');
+        const inputValue = document.getElementById('input-value');
+        const btnInputSave = document.getElementById('btn-input-save');
+        const btnInputCancel = document.getElementById('btn-input-cancel');
         const fileUpload = document.getElementById('file-upload');
         const uploadStatus = document.getElementById('upload-status');
 
+        // Variables Globales
         let currentCarrera = null;
         let currentRamoId = null;
         let currentRamoNombre = null;
-        
-        // Variables para Mis Notas
         let currentMiRamoId = null;
         let isAddingExam = false; 
-        let currentEditNotaId = null; // Controla si estamos editando o creando una nota nueva
+        let currentEditNotaId = null; 
+        
+        // Control de Administrador
+        let isAdminUser = false;
 
         // --- LÓGICA DEL MENÚ DESPLEGABLE ---
         btnMenu.addEventListener('click', (e) => {
@@ -418,6 +470,7 @@
             viewRamos.style.display = 'none';
             viewArchivos.style.display = 'none';
             viewMisNotas.style.display = 'none';
+            viewAdmin.style.display = 'none';
         }
 
         btnInicio.addEventListener('click', () => {
@@ -437,6 +490,14 @@
             loadMisRamos();
         });
 
+        btnAdminPanelUI.addEventListener('click', () => {
+            dropdownMenu.classList.remove('show');
+            hideAllViews();
+            searchContainer.style.display = 'none';
+            viewAdmin.style.display = 'block';
+            loadAdminUsers();
+        });
+
         const carrerasFijas = [
             "Actuación", "Administración Pública", "Agronomía", "Antropología", "Arqueología",
             "Arquitectura", "Arte", "Astronomía", "Bachillerato Inicia en Ciencias Naturales y Matemática",
@@ -451,7 +512,7 @@
             "Psicología", "Publicidad", "Química", "Química y Farmacia", "Sociología", "Teología", "Terapia Ocupacional", "Trabajo Social"
         ];
 
-        // --- BUSCADOR ---
+        // --- BUSCADOR GLOBAL ---
         searchBar.addEventListener('input', (e) => {
             const text = e.target.value.toLowerCase();
             let activeGrid = viewCarreras.style.display !== 'none' ? carrerasGrid : 
@@ -459,7 +520,7 @@
 
             activeGrid.querySelectorAll('.folder').forEach(item => {
                 const name = item.textContent.toLowerCase();
-                item.style.display = name.includes(text) ? 'block' : 'none';
+                item.style.display = name.includes(text) ? 'flex' : 'none'; // 'flex' because .folder is flex now
             });
         });
 
@@ -483,7 +544,7 @@
             viewRamos.style.display = 'block';
             searchBar.value = '';
 
-            ramosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7;">Cargando ramos...</p>';
+            ramosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7; grid-column:1/-1;">Cargando ramos...</p>';
             
             try {
                 const res = await fetch(`${WORKER_URL}/ramos?carrera=${encodeURIComponent(nombreCarrera)}`);
@@ -497,7 +558,7 @@
                     div.onclick = () => openRamo(ramo.id, ramo.nombre);
                     ramosGrid.appendChild(div);
                 });
-            } catch(e) { ramosGrid.innerHTML = '<p style="text-align:center; width:100%;">Error al conectar con la base de datos.</p>'; }
+            } catch(e) { ramosGrid.innerHTML = '<p style="text-align:center; width:100%; grid-column:1/-1;">Error al conectar con la base de datos.</p>'; }
 
             const btnAdd = document.createElement('div');
             btnAdd.className = 'folder';
@@ -519,7 +580,7 @@
             viewCarreras.style.display = 'block';
             currentCarrera = null;
             searchBar.value = '';
-            carrerasGrid.querySelectorAll('.folder').forEach(item => item.style.display = 'block');
+            carrerasGrid.querySelectorAll('.folder').forEach(item => item.style.display = 'flex');
         };
 
         btnInputSave.onclick = async () => {
@@ -546,7 +607,7 @@
             setTimeout(() => inputOverlay.style.display = 'none', 500);
         };
 
-        // --- NIVEL 3: ARCHIVOS ---
+        // --- NIVEL 3: ARCHIVOS Y ELIMINACIÓN ADMIN ---
         async function openRamo(ramoId, ramoNombre) {
             currentRamoId = ramoId;
             currentRamoNombre = ramoNombre;
@@ -555,7 +616,7 @@
             viewArchivos.style.display = 'block';
             searchBar.value = '';
 
-            archivosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7;">Cargando archivos...</p>';
+            archivosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7; grid-column:1/-1;">Cargando archivos...</p>';
             
             try {
                 const res = await fetch(`${WORKER_URL}/archivos?ramoId=${ramoId}`);
@@ -566,13 +627,28 @@
                     const div = document.createElement('div');
                     div.className = 'folder';
                     div.innerHTML = `📄 ${archivo.nombre}`;
+                    
+                    // Acción normal (abrir PDF)
                     div.onclick = () => {
                         const win = window.open();
                         win.document.write(`<iframe src="${archivo.url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
                     };
+
+                    // Si es Admin, inyecta botón de basura en el div
+                    if (isAdminUser) {
+                        const delBtn = document.createElement('div');
+                        delBtn.className = 'btn-delete-doc';
+                        delBtn.innerHTML = '🗑️';
+                        delBtn.onclick = (e) => {
+                            e.stopPropagation(); // Evita que se abra el PDF
+                            deleteArchivoGlobal(archivo.id);
+                        };
+                        div.appendChild(delBtn);
+                    }
+                    
                     archivosGrid.appendChild(div);
                 });
-            } catch(e) { archivosGrid.innerHTML = '<p style="text-align:center; width:100%;">Error al conectar con la base de datos.</p>'; }
+            } catch(e) { archivosGrid.innerHTML = '<p style="text-align:center; width:100%; grid-column:1/-1;">Error al conectar con la base de datos.</p>'; }
 
             const btnUpload = document.createElement('div');
             btnUpload.className = 'folder';
@@ -612,6 +688,15 @@
                 fileUpload.value = ''; 
             };
         });
+
+        async function deleteArchivoGlobal(archivoId) {
+            if(!confirm("⚠️ ADMIN: ¿Borrar definitivamente este documento para todos?")) return;
+            try {
+                const res = await fetch(`${WORKER_URL}/archivos?id=${archivoId}&requester=${encodeURIComponent(auth.currentUser.email)}`, { method: 'DELETE' });
+                if(!res.ok) throw new Error("No tienes permisos o falló el servidor");
+                await openRamo(currentRamoId, currentRamoNombre);
+            } catch(e) { alert(e.message); }
+        }
 
         // -----------------------------------------
         // --- SECCIÓN MIS NOTAS / VISTA TARJETAS---
@@ -814,16 +899,11 @@
 
         window.deleteNota = async (notaId) => {
             if(!confirm("¿Estás seguro de que deseas eliminar esta evaluación?")) return;
-            
             try {
-                const res = await fetch(`${WORKER_URL}/mis-notas?id=${notaId}&email=${encodeURIComponent(auth.currentUser.email)}`, {
-                    method: 'DELETE'
-                });
+                const res = await fetch(`${WORKER_URL}/mis-notas?id=${notaId}&email=${encodeURIComponent(auth.currentUser.email)}`, { method: 'DELETE' });
                 if(!res.ok) throw new Error('El servidor rechazó la eliminación.');
                 await loadMisRamos(); 
-            } catch(e) {
-                alert('Error al intentar eliminar. Asegúrate de haber actualizado el Worker en Cloudflare. (' + e.message + ')');
-            }
+            } catch(e) { alert('Error al intentar eliminar: ' + e.message); }
         };
 
         function openAddNotaModal(ramoId, isExam) {
@@ -837,7 +917,6 @@
                 modalNotaTitle.textContent = 'Agregar Evaluación';
                 inputNotaNombre.value = '';
             }
-            
             inputNotaPorcentaje.value = '';
             inputNotaValor.value = '';
             
@@ -865,15 +944,10 @@
             btnSaveMiNota.textContent = 'Guardando...';
 
             const metodoHTTP = currentEditNotaId ? 'PUT' : 'POST';
-            
             const payload = {
-                ramoId: currentMiRamoId,
-                email: auth.currentUser.email,
-                nombre: nombre,
-                porcentaje: parseFloat(porcentaje),
-                valor: parseFloat(valor)
+                ramoId: currentMiRamoId, email: auth.currentUser.email,
+                nombre: nombre, porcentaje: parseFloat(porcentaje), valor: parseFloat(valor)
             };
-
             if (currentEditNotaId) { payload.id = currentEditNotaId; }
 
             try {
@@ -882,17 +956,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                
-                if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    throw new Error(errData.error || 'Asegúrate de haber guardado el código actualizado en el Worker de Cloudflare.');
-                }
-                
+                if (!response.ok) throw new Error('Falló al guardar en Cloudflare');
                 btnCancelMiNota.click();
                 await loadMisRamos(); 
-            } catch (e) { 
-                alert('Fallo la conexión: ' + e.message); 
-            }
+            } catch (e) { alert('Fallo la conexión: ' + e.message); }
             
             btnSaveMiNota.disabled = false;
             btnSaveMiNota.textContent = 'Guardar';
@@ -903,6 +970,130 @@
             setTimeout(() => overlayMiNota.style.display = 'none', 500);
         };
 
+        // -----------------------------------------
+        // --- SECCIÓN PANEL DE ADMINISTRADOR ---
+        // -----------------------------------------
+        const btnTabUsuarios = document.getElementById('btn-tab-usuarios');
+        const btnTabEquipo = document.getElementById('btn-tab-equipo');
+        const adminUsuariosContainer = document.getElementById('admin-usuarios-container');
+        const adminEquipoContainer = document.getElementById('admin-equipo-container');
+        const adminUsersList = document.getElementById('admin-users-list');
+        const adminTeamList = document.getElementById('admin-team-list');
+        const adminSearchUsers = document.getElementById('admin-search-users');
+
+        btnTabUsuarios.onclick = () => {
+            btnTabUsuarios.style.background = '#FFD700'; btnTabUsuarios.style.color = '#000';
+            btnTabEquipo.style.background = 'rgba(255,255,255,0.1)'; btnTabEquipo.style.color = '#fff';
+            adminUsuariosContainer.style.display = 'block';
+            adminEquipoContainer.style.display = 'none';
+            loadAdminUsers();
+        };
+
+        btnTabEquipo.onclick = () => {
+            btnTabEquipo.style.background = '#FFD700'; btnTabEquipo.style.color = '#000';
+            btnTabUsuarios.style.background = 'rgba(255,255,255,0.1)'; btnTabUsuarios.style.color = '#fff';
+            adminEquipoContainer.style.display = 'block';
+            adminUsuariosContainer.style.display = 'none';
+            loadAdminTeam();
+        };
+
+        async function loadAdminUsers() {
+            adminUsersList.innerHTML = '<p style="text-align:center; opacity:0.7;">Cargando usuarios...</p>';
+            try {
+                const res = await fetch(`${WORKER_URL}/admin/users?requester=${encodeURIComponent(auth.currentUser.email)}`);
+                if(!res.ok) throw new Error();
+                const users = await res.json();
+                
+                adminUsersList.innerHTML = '';
+                users.forEach(u => {
+                    const div = document.createElement('div');
+                    div.className = 'admin-list-item user-row';
+                    div.innerHTML = `
+                        <div style="font-weight: 500;">👤 ${u.email}</div>
+                        <div style="opacity: 0.6; font-size: 0.85em;">Último acceso: ${new Date(u.ultimoAcceso).toLocaleDateString()}</div>
+                    `;
+                    // Al hacer click, ver aportes
+                    div.onclick = () => loadUserContributions(u.email, div);
+                    adminUsersList.appendChild(div);
+                });
+            } catch(e) { adminUsersList.innerHTML = '<p style="text-align:center; color:#ffcccc;">Error al cargar usuarios.</p>'; }
+        }
+
+        adminSearchUsers.addEventListener('input', (e) => {
+            const text = e.target.value.toLowerCase();
+            document.querySelectorAll('.user-row').forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(text) ? 'flex' : 'none';
+            });
+        });
+
+        async function loadUserContributions(targetEmail, parentDiv) {
+            // Cierra si ya está abierto
+            const existingDetails = parentDiv.querySelector('.contrib-details');
+            if(existingDetails) { existingDetails.remove(); return; }
+
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'contrib-details';
+            detailsDiv.style.width = '100%';
+            detailsDiv.style.marginTop = '15px';
+            detailsDiv.style.paddingTop = '15px';
+            detailsDiv.style.borderTop = '1px solid rgba(255,255,255,0.1)';
+            detailsDiv.innerHTML = '<p style="font-size:0.9em; opacity:0.7;">Cargando aportes...</p>';
+            
+            // Convertimos el flex a wrap temporalmente para alojar el detalle debajo
+            parentDiv.style.flexWrap = 'wrap';
+            parentDiv.appendChild(detailsDiv);
+
+            try {
+                const res = await fetch(`${WORKER_URL}/admin/contributions?requester=${encodeURIComponent(auth.currentUser.email)}&email=${encodeURIComponent(targetEmail)}`);
+                const data = await res.json();
+                
+                let html = '<div style="font-size:0.9em;">';
+                html += `<strong style="color:#FFD700;">Ramos creados (${data.ramos.length}):</strong><ul style="margin-left: 20px; opacity:0.8;">`;
+                data.ramos.forEach(r => html += `<li>${r.nombre} (en ${r.carrera})</li>`);
+                html += '</ul>';
+
+                html += `<strong style="color:#FFD700; margin-top:10px; display:block;">Archivos subidos (${data.archivos.length}):</strong><ul style="margin-left: 20px; opacity:0.8;">`;
+                data.archivos.forEach(a => html += `<li>📄 ${a.nombre}</li>`);
+                html += '</ul></div>';
+                
+                detailsDiv.innerHTML = html;
+            } catch(e) { detailsDiv.innerHTML = '<span style="color:#ffcccc;">Error de red</span>'; }
+        }
+
+        async function loadAdminTeam() {
+            adminTeamList.innerHTML = '<p style="text-align:center; opacity:0.7;">Cargando equipo...</p>';
+            try {
+                const res = await fetch(`${WORKER_URL}/admin/team?requester=${encodeURIComponent(auth.currentUser.email)}`);
+                const admins = await res.json();
+                adminTeamList.innerHTML = '';
+                admins.forEach(a => {
+                    adminTeamList.innerHTML += `
+                        <div class="admin-list-item" style="cursor:default;">
+                            <div style="font-weight: 500; color: #FFD700;">⭐ ${a.email}</div>
+                            <div style="opacity: 0.6; font-size: 0.85em;">Administrador</div>
+                        </div>
+                    `;
+                });
+            } catch(e) { adminTeamList.innerHTML = '<p style="text-align:center; color:#ffcccc;">Error al cargar equipo.</p>'; }
+        }
+
+        document.getElementById('btn-add-team').onclick = async () => {
+            const newAdmin = document.getElementById('admin-new-team-email').value.trim();
+            if(!newAdmin) return;
+            try {
+                const res = await fetch(`${WORKER_URL}/admin/team`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newAdmin, requester: auth.currentUser.email })
+                });
+                if(res.ok) {
+                    document.getElementById('admin-new-team-email').value = '';
+                    loadAdminTeam();
+                } else alert("Fallo al invitar (Revisa permisos).");
+            } catch(e) { alert("Error de red"); }
+        };
+
+        // --- AUTH Y CARGA INICIAL ---
         function showMsg(msg, color = '#ffcccc') {
             errorMsg.textContent = msg;
             errorMsg.style.color = color;
@@ -910,7 +1101,6 @@
             setTimeout(() => errorMsg.style.display = 'none', 6000);
         }
 
-        // --- AUTH ---
         document.getElementById('btn-register').addEventListener('click', () => {
             const email = emailInput.value.trim().toLowerCase();
             const password = passwordInput.value;
@@ -939,10 +1129,28 @@
                 }).catch(err => showMsg('Credenciales incorrectas.'));
         });
 
-        btnLogoutUI.addEventListener('click', () => signOut(auth));
+        btnLogoutUI.addEventListener('click', () => {
+            isAdminUser = false;
+            btnAdminPanelUI.style.display = 'none';
+            signOut(auth);
+        });
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user && user.emailVerified) {
+                // Registrar log silencioso
+                fetch(`${WORKER_URL}/track-user`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: user.email })
+                }).catch(()=>{});
+
+                // Verificar si es Admin
+                try {
+                    const res = await fetch(`${WORKER_URL}/admin/check?email=${encodeURIComponent(user.email)}`);
+                    const data = await res.json();
+                    isAdminUser = data.isAdmin;
+                    if (isAdminUser) btnAdminPanelUI.style.display = 'block';
+                } catch(e) { console.error(e); }
+
                 overlay.style.opacity = '0';
                 setTimeout(() => {
                     overlay.style.display = 'none';
