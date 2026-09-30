@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solidaridad Apoya</title>
-    
     <!-- Favicon para la pestaña del navegador -->
     <link rel="icon" type="image/png" href="https://lh3.googleusercontent.com/pw/AP1GczM-QDLV4_StoQYFE9fpmfm2AjaXbodPfWn5iZcmR0C3W_yrnM1P69rQ-UL97rllE-OVF4Zz7ZrhxT6AhbLpVzR1-MURUIj9RTF7UXoXZwv2oNBoV8ULKilizJBb27YYpWLeDTZTQk0sP44b1wyfxFz3KQ=w599-h599-s-no-gm?authuser=0">
-    
-    <!-- Configuración para Pantalla de Inicio en Celulares (iOS y Android) -->
+    <!-- Configuración para Pantalla de Inicio en Celulares -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="SddApoya">
@@ -268,7 +266,6 @@
                 <button id="btn-register" class="btn-secondary">Registrarse</button>
             </div>
             
-            <!-- NUEVO BOTÓN DE RECUPERAR CONTRASEÑA -->
             <p id="btn-forgot-password" class="btn-forgot">¿Olvidaste tu contraseña?</p>
         </div>
     </div>
@@ -401,11 +398,9 @@
 
     <!-- LÓGICA DE FIREBASE AUTH Y CLOUDFLARE D1 -->
     <script type="module">
-        // Se agregó sendPasswordResetEmail en la importación
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification, setPersistence, browserSessionPersistence, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // URL del backend seguro en Cloudflare
         const WORKER_URL = "https://sdd-backend.christensenjosemanuel.workers.dev";
 
         const firebaseConfig = {
@@ -419,6 +414,26 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+
+        // --- FUNCIÓN DE AUTENTICACIÓN CENTRALIZADA ---
+        // Envía el Token JWT en TODAS las peticiones hacia el Worker
+        async function fetchAuth(url, options = {}) {
+            if (!auth.currentUser) throw new Error("Sesión expirada");
+            const token = await auth.currentUser.getIdToken();
+            
+            const headers = options.headers || {};
+            if (!(options.body instanceof FormData)) {
+                headers['Content-Type'] = 'application/json';
+            }
+            
+            return fetch(url, {
+                ...options,
+                headers: {
+                    ...headers,
+                    'Authorization': `Bearer ${token}` // Aquí va la credencial infalsificable
+                }
+            });
+        }
 
         // DOM Elements
         const overlay = document.getElementById('auth-overlay');
@@ -483,7 +498,6 @@
         const fileUpload = document.getElementById('file-upload');
         const uploadStatus = document.getElementById('upload-status');
 
-        // Variables Globales
         let currentCarrera = null;
         let currentRamoId = null;
         let currentRamoNombre = null;
@@ -494,7 +508,6 @@
         let isAdminUser = false;
         let searchTimeout = null;
 
-        // --- LÓGICA DEL MENÚ DESPLEGABLE Y CLICS FUERA ---
         btnMenu.addEventListener('click', (e) => {
             e.stopPropagation();
             dropdownMenu.classList.toggle('show');
@@ -505,7 +518,6 @@
             if (!searchContainer.contains(e.target)) searchResults.style.display = 'none';
         });
 
-        // NAVEGACIÓN PRINCIPAL
         function hideAllViews() {
             viewCarreras.style.display = 'none';
             viewRamos.style.display = 'none';
@@ -546,7 +558,6 @@
             if (query.length === 0) {
                 searchResults.style.display = 'none';
                 searchResults.innerHTML = '';
-                
                 let activeGrid = viewCarreras.style.display !== 'none' ? carrerasGrid : 
                                 (viewRamos.style.display !== 'none' ? ramosGrid : archivosGrid);
                 activeGrid.querySelectorAll('.folder').forEach(item => item.style.display = 'flex');
@@ -567,7 +578,8 @@
                     searchResults.innerHTML = '<div style="padding:15px; text-align:center; opacity:0.7;">Buscando en la nube...</div>';
                     searchResults.style.display = 'flex';
                     
-                    const res = await fetch(`${WORKER_URL}/search?q=${encodeURIComponent(query)}`);
+                    // Usamos fetchAuth para buscar en la BD de forma autenticada
+                    const res = await fetchAuth(`${WORKER_URL}/search?q=${encodeURIComponent(query)}`);
                     const data = await res.json();
                     
                     if (data.length === 0) {
@@ -586,12 +598,9 @@
                         div.onclick = () => {
                             searchResults.style.display = 'none';
                             searchBar.value = '';
-                            if (item.type === 'carrera') {
-                                openCarrera(item.title);
-                            } else if (item.type === 'ramo') {
-                                currentCarrera = item.extra;
-                                openRamo(item.id, item.title);
-                            } else if (item.type === 'archivo') {
+                            if (item.type === 'carrera') openCarrera(item.title);
+                            else if (item.type === 'ramo') { currentCarrera = item.extra; openRamo(item.id, item.title); } 
+                            else if (item.type === 'archivo') {
                                 const win = window.open();
                                 win.document.write(`<iframe src="${item.extra}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
                             }
@@ -604,11 +613,11 @@
             }, 300);
         });
 
-        // --- NIVEL 1: CARRERAS (DESDE LA BASE DE DATOS) ---
+        // --- NIVEL 1: CARRERAS ---
         async function loadCarreras() {
             carrerasGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7; grid-column:1/-1;">Cargando carreras...</p>';
             try {
-                const res = await fetch(`${WORKER_URL}/carreras`);
+                const res = await fetchAuth(`${WORKER_URL}/carreras`);
                 const carrerasData = await res.json();
                 carrerasGrid.innerHTML = '';
 
@@ -622,10 +631,7 @@
                         const delBtn = document.createElement('div');
                         delBtn.className = 'btn-delete-doc';
                         delBtn.innerHTML = '🗑';
-                        delBtn.onclick = (e) => {
-                            e.stopPropagation();
-                            deleteCarreraGlobal(carrera.nombre);
-                        };
+                        delBtn.onclick = (e) => { e.stopPropagation(); deleteCarreraGlobal(carrera.nombre); };
                         div.appendChild(delBtn);
                     }
                     carrerasGrid.appendChild(div);
@@ -650,7 +656,6 @@
                     };
                     carrerasGrid.appendChild(btnAdd);
                 }
-
             } catch(e) { carrerasGrid.innerHTML = '<p style="text-align:center; width:100%; grid-column:1/-1;">Error al conectar con la base de datos.</p>'; }
         }
 
@@ -661,10 +666,9 @@
             btnInputSave.textContent = 'Guardando...';
 
             try {
-                await fetch(`${WORKER_URL}/carreras`, {
+                await fetchAuth(`${WORKER_URL}/carreras`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nombre: val, requester: auth.currentUser.email })
+                    body: JSON.stringify({ nombre: val }) // Ya no mandamos correo
                 });
                 btnInputCancel.click();
                 await loadCarreras();
@@ -676,7 +680,7 @@
         async function deleteCarreraGlobal(carreraNombre) {
             if(!confirm(`⚠️ ADMIN: ¿Borrar definitivamente la carrera "${carreraNombre}" y TODOS sus ramos?`)) return;
             try {
-                const res = await fetch(`${WORKER_URL}/carreras?nombre=${encodeURIComponent(carreraNombre)}&requester=${encodeURIComponent(auth.currentUser.email)}`, { method: 'DELETE' });
+                const res = await fetchAuth(`${WORKER_URL}/carreras?nombre=${encodeURIComponent(carreraNombre)}`, { method: 'DELETE' });
                 if(!res.ok) throw new Error("No tienes permisos o falló el servidor");
                 await loadCarreras();
             } catch(e) { alert(e.message); }
@@ -693,7 +697,7 @@
             ramosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7; grid-column:1/-1;">Cargando ramos...</p>';
             
             try {
-                const res = await fetch(`${WORKER_URL}/ramos?carrera=${encodeURIComponent(nombreCarrera)}`);
+                const res = await fetchAuth(`${WORKER_URL}/ramos?carrera=${encodeURIComponent(nombreCarrera)}`);
                 const ramosData = await res.json();
                 ramosGrid.innerHTML = '';
 
@@ -707,10 +711,7 @@
                         const delBtn = document.createElement('div');
                         delBtn.className = 'btn-delete-doc';
                         delBtn.innerHTML = '🗑️';
-                        delBtn.onclick = (e) => {
-                            e.stopPropagation();
-                            deleteRamoGlobal(ramo.id);
-                        };
+                        delBtn.onclick = (e) => { e.stopPropagation(); deleteRamoGlobal(ramo.id); };
                         div.appendChild(delBtn);
                     }
                     ramosGrid.appendChild(div);
@@ -750,10 +751,9 @@
             btnInputSave.textContent = 'Guardando...';
 
             try {
-                await fetch(`${WORKER_URL}/ramos`, {
+                await fetchAuth(`${WORKER_URL}/ramos`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nombre: val, carrera: currentCarrera, creadoPor: auth.currentUser.email })
+                    body: JSON.stringify({ nombre: val, carrera: currentCarrera }) // Ya no mandamos correo
                 });
                 btnInputCancel.click();
                 await openCarrera(currentCarrera);
@@ -765,7 +765,7 @@
         async function deleteRamoGlobal(ramoId) {
             if(!confirm("⚠️ ADMIN: ¿Borrar definitivamente este ramo y TODOS sus documentos?")) return;
             try {
-                const res = await fetch(`${WORKER_URL}/ramos?id=${ramoId}&requester=${encodeURIComponent(auth.currentUser.email)}`, { method: 'DELETE' });
+                const res = await fetchAuth(`${WORKER_URL}/ramos?id=${ramoId}`, { method: 'DELETE' });
                 if(!res.ok) throw new Error("No tienes permisos o falló el servidor");
                 await openCarrera(currentCarrera);
             } catch(e) { alert(e.message); }
@@ -788,7 +788,7 @@
             archivosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7; grid-column:1/-1;">Cargando archivos...</p>';
             
             try {
-                const res = await fetch(`${WORKER_URL}/archivos?ramoId=${ramoId}`);
+                const res = await fetchAuth(`${WORKER_URL}/archivos?ramoId=${ramoId}`);
                 const archivosData = await res.json();
                 archivosGrid.innerHTML = '';
 
@@ -806,13 +806,9 @@
                         const delBtn = document.createElement('div');
                         delBtn.className = 'btn-delete-doc';
                         delBtn.innerHTML = '🗑️';
-                        delBtn.onclick = (e) => {
-                            e.stopPropagation(); 
-                            deleteArchivoGlobal(archivo.id);
-                        };
+                        delBtn.onclick = (e) => { e.stopPropagation(); deleteArchivoGlobal(archivo.id); };
                         div.appendChild(delBtn);
                     }
-                    
                     archivosGrid.appendChild(div);
                 });
             } catch(e) { archivosGrid.innerHTML = '<p style="text-align:center; width:100%; grid-column:1/-1;">Error al conectar con la base de datos.</p>'; }
@@ -843,10 +839,9 @@
             reader.onload = async () => {
                 const base64String = reader.result;
                 try {
-                    const response = await fetch(`${WORKER_URL}/archivos`, {
+                    const response = await fetchAuth(`${WORKER_URL}/archivos`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ nombre: file.name, ramoId: currentRamoId, base64: base64String, subidoPor: auth.currentUser.email })
+                        body: JSON.stringify({ nombre: file.name, ramoId: currentRamoId, base64: base64String }) // Ya no mandamos correo
                     });
                     if (!response.ok) throw new Error('Fallo la carga. Intenta comprimir el PDF.');
                     await openRamo(currentRamoId, currentRamoNombre);
@@ -859,26 +854,23 @@
         async function deleteArchivoGlobal(archivoId) {
             if(!confirm("⚠️ ADMIN: ¿Borrar definitivamente este documento para todos?")) return;
             try {
-                const res = await fetch(`${WORKER_URL}/archivos?id=${archivoId}&requester=${encodeURIComponent(auth.currentUser.email)}`, { method: 'DELETE' });
+                const res = await fetchAuth(`${WORKER_URL}/archivos?id=${archivoId}`, { method: 'DELETE' });
                 if(!res.ok) throw new Error("No tienes permisos o falló el servidor");
                 await openRamo(currentRamoId, currentRamoNombre);
             } catch(e) { alert(e.message); }
         }
 
-        // -----------------------------------------
         // --- SECCIÓN MIS NOTAS / VISTA TARJETAS---
-        // -----------------------------------------
-
         async function loadMisRamos() {
             misRamosGrid.className = 'notas-grid';
             misRamosGrid.innerHTML = '<p style="text-align:center; width:100%; opacity:0.7; grid-column: 1 / -1;">Cargando tus ramos y notas...</p>';
             
             try {
-                const resRamos = await fetch(`${WORKER_URL}/mis-ramos?email=${encodeURIComponent(auth.currentUser.email)}`);
+                const resRamos = await fetchAuth(`${WORKER_URL}/mis-ramos`);
                 const ramosData = await resRamos.json();
                 
                 const notesPromises = ramosData.map(ramo => 
-                    fetch(`${WORKER_URL}/mis-notas?ramoId=${ramo.id}&email=${encodeURIComponent(auth.currentUser.email)}`).then(r => r.json())
+                    fetchAuth(`${WORKER_URL}/mis-notas?ramoId=${ramo.id}`).then(r => r.json())
                 );
                 const allNotesData = await Promise.all(notesPromises);
 
@@ -892,11 +884,8 @@
                     let notasNormales = [];
 
                     notasData.forEach((nota) => {
-                        if (nota.nombre.startsWith('[EXAMEN]')) {
-                            examenNota = nota;
-                        } else {
-                            notasNormales.push(nota);
-                        }
+                        if (nota.nombre.startsWith('[EXAMEN]')) examenNota = nota;
+                        else notasNormales.push(nota);
                     });
 
                     let tableRows = '';
@@ -920,11 +909,7 @@
 
                     let promedioBase = 0;
                     let roundedPorcentaje = Math.round(porcentajeTotal);
-                    
-                    if (porcentajeTotal > 0) {
-                        promedioBase = sumaPonderada / (porcentajeTotal / 100);
-                    }
-
+                    if (porcentajeTotal > 0) promedioBase = sumaPonderada / (porcentajeTotal / 100);
                     let notaFinal = promedioBase;
                     
                     if (examenNota) {
@@ -949,30 +934,20 @@
                     let hasEvaluations = notasData.length > 0;
                     let statusHtml = '';
 
-                    if (!hasEvaluations) {
-                        statusHtml = `<div class="status-badge status-neutro">Sin evaluaciones</div>`;
-                    } else if (isAprobado) {
-                        statusHtml = `<div class="status-badge status-aprobado">Ramo aprobado</div>`;
-                    } else {
-                        statusHtml = `<div class="status-badge status-reprobado">Ramo reprobado</div>`;
-                    }
+                    if (!hasEvaluations) statusHtml = `<div class="status-badge status-neutro">Sin evaluaciones</div>`;
+                    else if (isAprobado) statusHtml = `<div class="status-badge status-aprobado">Ramo aprobado</div>`;
+                    else statusHtml = `<div class="status-badge status-reprobado">Ramo reprobado</div>`;
 
                     let avgDisplay = hasEvaluations ? notaFinal.toFixed(2) : '--';
-                    
-                    // Lógica de Nota Necesaria para pasar
                     let notaNecesariaHtml = '';
                     
                     if (!examenNota && roundedPorcentaje < 100) {
                         let pesoRestante = 100 - porcentajeTotal;
                         let notaNecesaria = (3.95 - sumaPonderada) / (pesoRestante / 100);
                         
-                        if (notaNecesaria > 7.0) {
-                            notaNecesariaHtml = `<div style="font-size:0.85em; color:#f87171; margin-top:8px;">Necesitas un <b>${notaNecesaria.toFixed(2)}</b> (Reprobado matemático)</div>`;
-                        } else if (notaNecesaria <= 1.0) {
-                            notaNecesariaHtml = `<div style="font-size:0.85em; color:#4ade80; margin-top:8px;">¡Ya tienes el 3.95 asegurado! 🎉</div>`;
-                        } else {
-                            notaNecesariaHtml = `<div style="font-size:0.85em; color:#FFD700; margin-top:8px;">Necesitas un <b>${notaNecesaria.toFixed(2)}</b> en el ${pesoRestante.toFixed(0)}% restante</div>`;
-                        }
+                        if (notaNecesaria > 7.0) notaNecesariaHtml = `<div style="font-size:0.85em; color:#f87171; margin-top:8px;">Necesitas un <b>${notaNecesaria.toFixed(2)}</b> (Reprobado matemático)</div>`;
+                        else if (notaNecesaria <= 1.0) notaNecesariaHtml = `<div style="font-size:0.85em; color:#4ade80; margin-top:8px;">¡Ya tienes el 3.95 asegurado! 🎉</div>`;
+                        else notaNecesariaHtml = `<div style="font-size:0.85em; color:#FFD700; margin-top:8px;">Necesitas un <b>${notaNecesaria.toFixed(2)}</b> en el ${pesoRestante.toFixed(0)}% restante</div>`;
                     }
 
                     const card = document.createElement('div');
@@ -998,28 +973,19 @@
                     `;
 
                     const actionsDiv = card.querySelector('.card-actions');
-                    
                     const btnNota = document.createElement('button');
                     btnNota.className = 'btn-small btn-add-nota';
                     btnNota.textContent = '+ Evaluación';
-                    btnNota.onclick = () => {
-                        currentEditNotaId = null; 
-                        openAddNotaModal(ramo.id, false);
-                    };
+                    btnNota.onclick = () => { currentEditNotaId = null; openAddNotaModal(ramo.id, false); };
                     actionsDiv.appendChild(btnNota);
 
-                    // Botón de Examen se oculta si ya existe un examen o si las notas NO suman exactamente el 100%
                     if (!examenNota && roundedPorcentaje >= 100) {
                         const btnExam = document.createElement('button');
                         btnExam.className = 'btn-small btn-add-exam';
                         btnExam.textContent = '⭐ Examen';
-                        btnExam.onclick = () => {
-                            currentEditNotaId = null; 
-                            openAddNotaModal(ramo.id, true);
-                        };
+                        btnExam.onclick = () => { currentEditNotaId = null; openAddNotaModal(ramo.id, true); };
                         actionsDiv.appendChild(btnExam);
                     }
-
                     misRamosGrid.appendChild(card);
                 });
 
@@ -1038,10 +1004,7 @@
                     inputMiRamo.focus();
                 };
                 misRamosGrid.appendChild(addCard);
-
-            } catch(e) { 
-                misRamosGrid.innerHTML = '<p style="text-align:center; width:100%; grid-column: 1 / -1;">No se pudo conectar a tu base de datos.</p>'; 
-            }
+            } catch(e) { misRamosGrid.innerHTML = '<p style="text-align:center; width:100%; grid-column: 1 / -1;">No se pudo conectar a tu base de datos.</p>'; }
         }
 
         btnSaveMiRamo.onclick = async () => {
@@ -1051,15 +1014,13 @@
             btnSaveMiRamo.textContent = 'Guardando...';
 
             try {
-                await fetch(`${WORKER_URL}/mis-ramos`, {
+                await fetchAuth(`${WORKER_URL}/mis-ramos`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nombre: val, email: auth.currentUser.email })
+                    body: JSON.stringify({ nombre: val })
                 });
                 btnCancelMiRamo.click();
                 await loadMisRamos(); 
             } catch (e) { alert('Error al guardar en tu base de datos.'); }
-            
             btnSaveMiRamo.disabled = false;
             btnSaveMiRamo.textContent = 'Guardar';
         };
@@ -1073,12 +1034,10 @@
             currentEditNotaId = notaId;
             currentMiRamoId = ramoId;
             isAddingExam = isExam;
-            
             modalNotaTitle.textContent = isExam ? 'Editar Examen' : 'Editar Evaluación';
             inputNotaNombre.value = isExam ? nombre.replace('[EXAMEN] ', '') : nombre;
             inputNotaPorcentaje.value = porcentaje;
             inputNotaValor.value = valor;
-            
             overlayMiNota.style.display = 'flex';
             setTimeout(() => overlayMiNota.style.opacity = '1', 50);
             inputNotaPorcentaje.focus();
@@ -1087,7 +1046,7 @@
         window.deleteNota = async (notaId) => {
             if(!confirm("¿Estás seguro de que deseas eliminar esta evaluación?")) return;
             try {
-                const res = await fetch(`${WORKER_URL}/mis-notas?id=${notaId}&email=${encodeURIComponent(auth.currentUser.email)}`, { method: 'DELETE' });
+                const res = await fetchAuth(`${WORKER_URL}/mis-notas?id=${notaId}`, { method: 'DELETE' });
                 if(!res.ok) throw new Error('El servidor rechazó la eliminación.');
                 await loadMisRamos(); 
             } catch(e) { alert('Error al intentar eliminar: ' + e.message); }
@@ -1096,58 +1055,33 @@
         function openAddNotaModal(ramoId, isExam) {
             currentMiRamoId = ramoId;
             isAddingExam = isExam;
-            
-            if(isExam) {
-                modalNotaTitle.textContent = 'Agregar Examen Final';
-                inputNotaNombre.value = 'Examen Final';
-            } else {
-                modalNotaTitle.textContent = 'Agregar Evaluación';
-                inputNotaNombre.value = '';
-            }
-            inputNotaPorcentaje.value = '';
-            inputNotaValor.value = '';
-            
+            if(isExam) { modalNotaTitle.textContent = 'Agregar Examen Final'; inputNotaNombre.value = 'Examen Final'; } 
+            else { modalNotaTitle.textContent = 'Agregar Evaluación'; inputNotaNombre.value = ''; }
+            inputNotaPorcentaje.value = ''; inputNotaValor.value = '';
             overlayMiNota.style.display = 'flex';
             setTimeout(() => overlayMiNota.style.opacity = '1', 50);
-            
-            if(isExam) { inputNotaPorcentaje.focus(); } else { inputNotaNombre.focus(); }
+            if(isExam) inputNotaPorcentaje.focus(); else inputNotaNombre.focus();
         }
 
         btnSaveMiNota.onclick = async () => {
             let nombre = inputNotaNombre.value.trim();
             const porcentaje = inputNotaPorcentaje.value.trim();
             const valor = inputNotaValor.value.trim();
-            
-            if (!nombre || !porcentaje || !valor) {
-                alert("Por favor completa todos los campos.");
-                return;
-            }
-
-            if (isAddingExam && !nombre.startsWith('[EXAMEN]')) {
-                nombre = '[EXAMEN] ' + nombre;
-            }
+            if (!nombre || !porcentaje || !valor) return alert("Por favor completa todos los campos.");
+            if (isAddingExam && !nombre.startsWith('[EXAMEN]')) nombre = '[EXAMEN] ' + nombre;
 
             btnSaveMiNota.disabled = true;
             btnSaveMiNota.textContent = 'Guardando...';
-
             const metodoHTTP = currentEditNotaId ? 'PUT' : 'POST';
-            const payload = {
-                ramoId: currentMiRamoId, email: auth.currentUser.email,
-                nombre: nombre, porcentaje: parseFloat(porcentaje), valor: parseFloat(valor)
-            };
-            if (currentEditNotaId) { payload.id = currentEditNotaId; }
+            const payload = { ramoId: currentMiRamoId, nombre, porcentaje: parseFloat(porcentaje), valor: parseFloat(valor) };
+            if (currentEditNotaId) payload.id = currentEditNotaId;
 
             try {
-                const response = await fetch(`${WORKER_URL}/mis-notas`, {
-                    method: metodoHTTP,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                const response = await fetchAuth(`${WORKER_URL}/mis-notas`, { method: metodoHTTP, body: JSON.stringify(payload) });
                 if (!response.ok) throw new Error('Falló al guardar en Cloudflare');
                 btnCancelMiNota.click();
                 await loadMisRamos(); 
             } catch (e) { alert('Fallo la conexión: ' + e.message); }
-            
             btnSaveMiNota.disabled = false;
             btnSaveMiNota.textContent = 'Guardar';
         };
@@ -1157,9 +1091,7 @@
             setTimeout(() => overlayMiNota.style.display = 'none', 500);
         };
 
-        // -----------------------------------------
         // --- SECCIÓN PANEL DE ADMINISTRADOR ---
-        // -----------------------------------------
         const btnTabUsuarios = document.getElementById('btn-tab-usuarios');
         const btnTabEquipo = document.getElementById('btn-tab-equipo');
         const adminUsuariosContainer = document.getElementById('admin-usuarios-container');
@@ -1171,23 +1103,21 @@
         btnTabUsuarios.onclick = () => {
             btnTabUsuarios.style.background = '#FFD700'; btnTabUsuarios.style.color = '#000';
             btnTabEquipo.style.background = 'rgba(255,255,255,0.1)'; btnTabEquipo.style.color = '#fff';
-            adminUsuariosContainer.style.display = 'block';
-            adminEquipoContainer.style.display = 'none';
+            adminUsuariosContainer.style.display = 'block'; adminEquipoContainer.style.display = 'none';
             loadAdminUsers();
         };
 
         btnTabEquipo.onclick = () => {
             btnTabEquipo.style.background = '#FFD700'; btnTabEquipo.style.color = '#000';
             btnTabUsuarios.style.background = 'rgba(255,255,255,0.1)'; btnTabUsuarios.style.color = '#fff';
-            adminEquipoContainer.style.display = 'block';
-            adminUsuariosContainer.style.display = 'none';
+            adminEquipoContainer.style.display = 'block'; adminUsuariosContainer.style.display = 'none';
             loadAdminTeam();
         };
 
         async function loadAdminUsers() {
             adminUsersList.innerHTML = '<p style="text-align:center; opacity:0.7;">Cargando usuarios...</p>';
             try {
-                const res = await fetch(`${WORKER_URL}/admin/users?requester=${encodeURIComponent(auth.currentUser.email)}`);
+                const res = await fetchAuth(`${WORKER_URL}/admin/users`);
                 if(!res.ok) throw new Error();
                 const users = await res.json();
                 
@@ -1195,10 +1125,7 @@
                 users.forEach(u => {
                     const div = document.createElement('div');
                     div.className = 'admin-list-item user-row';
-                    div.innerHTML = `
-                        <div style="font-weight: 500;">👤 ${u.email}</div>
-                        <div style="opacity: 0.6; font-size: 0.85em;">Último acceso: ${new Date(u.ultimoAcceso).toLocaleDateString()}</div>
-                    `;
+                    div.innerHTML = `<div style="font-weight: 500;">👤 ${u.email}</div><div style="opacity: 0.6; font-size: 0.85em;">Último acceso: ${new Date(u.ultimoAcceso).toLocaleDateString()}</div>`;
                     div.onclick = () => loadUserContributions(u.email, div);
                     adminUsersList.appendChild(div);
                 });
@@ -1207,9 +1134,7 @@
 
         adminSearchUsers.addEventListener('input', (e) => {
             const text = e.target.value.toLowerCase();
-            document.querySelectorAll('.user-row').forEach(row => {
-                row.style.display = row.innerText.toLowerCase().includes(text) ? 'flex' : 'none';
-            });
+            document.querySelectorAll('.user-row').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(text) ? 'flex' : 'none'; });
         });
 
         async function loadUserContributions(targetEmail, parentDiv) {
@@ -1218,28 +1143,21 @@
 
             const detailsDiv = document.createElement('div');
             detailsDiv.className = 'contrib-details';
-            detailsDiv.style.width = '100%';
-            detailsDiv.style.marginTop = '15px';
-            detailsDiv.style.paddingTop = '15px';
-            detailsDiv.style.borderTop = '1px solid rgba(255,255,255,0.1)';
+            detailsDiv.style.cssText = 'width: 100%; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);';
             detailsDiv.innerHTML = '<p style="font-size:0.9em; opacity:0.7;">Cargando aportes...</p>';
             
             parentDiv.style.flexWrap = 'wrap';
             parentDiv.appendChild(detailsDiv);
 
             try {
-                const res = await fetch(`${WORKER_URL}/admin/contributions?requester=${encodeURIComponent(auth.currentUser.email)}&email=${encodeURIComponent(targetEmail)}`);
+                const res = await fetchAuth(`${WORKER_URL}/admin/contributions?email=${encodeURIComponent(targetEmail)}`);
                 const data = await res.json();
                 
-                let html = '<div style="font-size:0.9em;">';
-                html += `<strong style="color:#FFD700;">Ramos creados (${data.ramos.length}):</strong><ul style="margin-left: 20px; opacity:0.8;">`;
+                let html = `<div style="font-size:0.9em;"><strong style="color:#FFD700;">Ramos creados (${data.ramos.length}):</strong><ul style="margin-left: 20px; opacity:0.8;">`;
                 data.ramos.forEach(r => html += `<li>${r.nombre} (en ${r.carrera})</li>`);
-                html += '</ul>';
-
-                html += `<strong style="color:#FFD700; margin-top:10px; display:block;">Archivos subidos (${data.archivos.length}):</strong><ul style="margin-left: 20px; opacity:0.8;">`;
+                html += `</ul><strong style="color:#FFD700; margin-top:10px; display:block;">Archivos subidos (${data.archivos.length}):</strong><ul style="margin-left: 20px; opacity:0.8;">`;
                 data.archivos.forEach(a => html += `<li>📄 ${a.nombre}</li>`);
                 html += '</ul></div>';
-                
                 detailsDiv.innerHTML = html;
             } catch(e) { detailsDiv.innerHTML = '<span style="color:#ffcccc;">Error de red</span>'; }
         }
@@ -1247,16 +1165,11 @@
         async function loadAdminTeam() {
             adminTeamList.innerHTML = '<p style="text-align:center; opacity:0.7;">Cargando equipo...</p>';
             try {
-                const res = await fetch(`${WORKER_URL}/admin/team?requester=${encodeURIComponent(auth.currentUser.email)}`);
+                const res = await fetchAuth(`${WORKER_URL}/admin/team`);
                 const admins = await res.json();
                 adminTeamList.innerHTML = '';
                 admins.forEach(a => {
-                    adminTeamList.innerHTML += `
-                        <div class="admin-list-item" style="cursor:default;">
-                            <div style="font-weight: 500; color: #FFD700;">⭐ ${a.email}</div>
-                            <div style="opacity: 0.6; font-size: 0.85em;">Administrador</div>
-                        </div>
-                    `;
+                    adminTeamList.innerHTML += `<div class="admin-list-item" style="cursor:default;"><div style="font-weight: 500; color: #FFD700;">⭐ ${a.email}</div><div style="opacity: 0.6; font-size: 0.85em;">Administrador</div></div>`;
                 });
             } catch(e) { adminTeamList.innerHTML = '<p style="text-align:center; color:#ffcccc;">Error al cargar equipo.</p>'; }
         }
@@ -1265,94 +1178,55 @@
             const newAdmin = document.getElementById('admin-new-team-email').value.trim();
             if(!newAdmin) return;
             try {
-                const res = await fetch(`${WORKER_URL}/admin/team`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ newAdmin, requester: auth.currentUser.email })
+                const res = await fetchAuth(`${WORKER_URL}/admin/team`, {
+                    method: 'POST', body: JSON.stringify({ newAdmin })
                 });
-                if(res.ok) {
-                    document.getElementById('admin-new-team-email').value = '';
-                    loadAdminTeam();
-                } else alert("Fallo al invitar (Revisa permisos).");
+                if(res.ok) { document.getElementById('admin-new-team-email').value = ''; loadAdminTeam(); } 
+                else alert("Fallo al invitar (Revisa permisos).");
             } catch(e) { alert("Error de red"); }
         };
 
         // --- AUTH Y CARGA INICIAL ---
         function showMsg(msg, color = '#ffcccc') {
-            errorMsg.textContent = msg;
-            errorMsg.style.color = color;
-            errorMsg.style.display = 'block';
+            errorMsg.textContent = msg; errorMsg.style.color = color; errorMsg.style.display = 'block';
             setTimeout(() => errorMsg.style.display = 'none', 6000);
         }
 
         document.getElementById('btn-register').addEventListener('click', () => {
             const email = emailInput.value.trim().toLowerCase();
             const password = passwordInput.value;
-            if (!email.endsWith('@uc.cl') && !email.endsWith('@estudiante.uc.cl')) {
-                showMsg('Solo correos @uc.cl o @estudiante.uc.cl permitidos.');
-                return;
-            }
+            if (!email.endsWith('@uc.cl') && !email.endsWith('@estudiante.uc.cl')) return showMsg('Solo correos @uc.cl o @estudiante.uc.cl permitidos.');
             
-            // Forzar el uso de Sesión (se borra al cerrar pestaña/navegador)
-            setPersistence(auth, browserSessionPersistence).then(() => {
-                return createUserWithEmailAndPassword(auth, email, password);
-            }).then((cred) => {
-                sendEmailVerification(cred.user).then(() => {
-                    showMsg('Cuenta creada. Revisa tu correo UC para verificarla.', '#a8e6cf');
-                    signOut(auth);
-                });
-            }).catch(err => showMsg(err.message));
+            setPersistence(auth, browserSessionPersistence).then(() => createUserWithEmailAndPassword(auth, email, password))
+            .then((cred) => sendEmailVerification(cred.user).then(() => { showMsg('Cuenta creada. Revisa tu correo UC para verificarla.', '#a8e6cf'); signOut(auth); }))
+            .catch(err => showMsg(err.message));
         });
 
         document.getElementById('btn-login').addEventListener('click', () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value;
-            
-            // Forzar el uso de Sesión (se borra al cerrar pestaña/navegador)
-            setPersistence(auth, browserSessionPersistence).then(() => {
-                return signInWithEmailAndPassword(auth, email, password);
-            }).then((cred) => {
-                if (!cred.user.emailVerified) {
-                    showMsg('Debes verificar tu correo UC primero.');
-                    signOut(auth);
-                }
-            }).catch(err => showMsg('Credenciales incorrectas.'));
+            setPersistence(auth, browserSessionPersistence).then(() => signInWithEmailAndPassword(auth, email, password))
+            .then((cred) => { if (!cred.user.emailVerified) { showMsg('Debes verificar tu correo UC primero.'); signOut(auth); } })
+            .catch(err => showMsg('Credenciales incorrectas.'));
         });
 
-        btnLogoutUI.addEventListener('click', () => {
-            isAdminUser = false;
-            btnAdminPanelUI.style.display = 'none';
-            signOut(auth);
-        });
+        btnLogoutUI.addEventListener('click', () => { isAdminUser = false; btnAdminPanelUI.style.display = 'none'; signOut(auth); });
 
         document.getElementById('btn-forgot-password').addEventListener('click', () => {
             const email = emailInput.value.trim();
-            if (!email) {
-                showMsg('Ingresa tu correo institucional arriba y presiona "Recuperar contraseña".');
-                return;
-            }
-            if (!email.endsWith('@uc.cl') && !email.endsWith('@estudiante.uc.cl')) {
-                showMsg('Solo correos @uc.cl o @estudiante.uc.cl permitidos.');
-                return;
-            }
-            sendPasswordResetEmail(auth, email)
-                .then(() => {
-                    showMsg('Correo de recuperación enviado. Revisa tu bandeja de entrada o spam.', '#a8e6cf');
-                })
-                .catch((error) => {
-                    showMsg('Error: No se pudo enviar el correo. ' + error.message);
-                });
+            if (!email) return showMsg('Ingresa tu correo institucional arriba y presiona "Recuperar contraseña".');
+            if (!email.endsWith('@uc.cl') && !email.endsWith('@estudiante.uc.cl')) return showMsg('Solo correos @uc.cl o @estudiante.uc.cl permitidos.');
+            sendPasswordResetEmail(auth, email).then(() => showMsg('Correo de recuperación enviado. Revisa tu bandeja de entrada o spam.', '#a8e6cf'))
+            .catch((error) => showMsg('Error: No se pudo enviar el correo. ' + error.message));
         });
 
         onAuthStateChanged(auth, async (user) => {
             if (user && user.emailVerified) {
-                fetch(`${WORKER_URL}/track-user`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: user.email })
-                }).catch(()=>{});
+                // Registrar log con la nueva función fetchAuth
+                fetchAuth(`${WORKER_URL}/track-user`, { method: 'POST' }).catch(()=>{});
 
                 try {
-                    const res = await fetch(`${WORKER_URL}/admin/check?email=${encodeURIComponent(user.email)}`);
+                    const res = await fetchAuth(`${WORKER_URL}/admin/check`);
                     const data = await res.json();
                     isAdminUser = data.isAdmin;
                     if (isAdminUser) btnAdminPanelUI.style.display = 'block';
